@@ -2,10 +2,11 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Config"
+    "\\app\\Providers",
+    "\\database",
+    "\\database\\migrations",
+    "\\database\\seeders"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Config\\RegistroActividadController.php",
+  "SelectedNode": "\\database\\seeders\\RolesPermisosSeeder.php",
   "PreviewInSolutionExplorer": false
 }

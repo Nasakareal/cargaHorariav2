@@ -21,6 +21,7 @@ class RolesPermisosSeeder extends Seeder
             'intercambiar horarios',
             'ver horarios grupos',
             'ver horarios profesores',
+            'asignar horarios',
 
             // Horarios Laboratorio
             'bloquear horario',
@@ -140,6 +141,10 @@ class RolesPermisosSeeder extends Seeder
             'crear salones',
             'editar salones',
             'eliminar salones',
+            'autoasignar salones',
+            'revertir autoasignacion',
+
+            'exportar horarios pdf',
         ];
 
         foreach ($permisos as $p) {

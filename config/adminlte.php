@@ -302,11 +302,11 @@ return [
     */
     'menu' => [
         // Navbar
-        ['type' => 'navbar-search', 'text' => 'search', 'topnav_right' => true],
+        ['type' => 'navbar-search', 'text' => 'buscar', 'topnav_right' => true],
         ['type' => 'fullscreen-widget', 'topnav_right' => true],
 
         // Sidebar search
-        ['type' => 'sidebar-menu-search', 'text' => 'search'],
+        ['type' => 'sidebar-menu-search', 'text' => 'buscar'],
 
         // ====== BOTONES PRINCIPALES ======
 
@@ -315,8 +315,8 @@ return [
             'icon' => 'fas fa-user-tie',
             'can'  => 'ver profesores',
             'submenu' => [
-                ['text'=>'Listado de Profesores', 'route'=>'profesores.index',  'icon'=>'bi bi-person-lines-fill', 'can'=>'ver profesores'],
-                ['text'=>'Horarios Profesores',   'route'=>'', 'icon'=>'bi bi-clock', 'can'=>'crear profesores'],
+                ['text'=>'Listado de Profesores', 'url'=>'profesores',  'icon'=>'bi bi-person-lines-fill', 'can'=>'ver profesores'],
+                ['text'=>'Horarios Profesores',   'url'=>'#', 'icon'=>'bi bi-clock', 'can'=>'crear profesores'],
             ],
         ],
 
@@ -325,7 +325,7 @@ return [
             'icon' => 'fas fa-book',
             'can'  => 'ver materias',
             'submenu' => [
-                ['text'=>'Listado de Materias', 'route'=>'materias.index',  'icon'=>'bi bi-list-columns', 'can'=>'ver materias'],
+                ['text'=>'Listado de Materias', 'url'=>'materias',  'icon'=>'bi bi-list-columns', 'can'=>'ver materias'],
             ],
         ],
 
@@ -334,9 +334,9 @@ return [
             'icon' => 'fas fa-layer-group',
             'can'  => 'ver programas',
             'submenu' => [
-                ['text'=>'Listado de Programas', 'route'=>'',  'icon'=>'far fa-circle', 'can'=>'ver programas'],
-                ['text'=>'Crear Programa',       'route'=>'', 'icon'=>'far fa-circle', 'can'=>'crear programas'],
-                ['text'=>'Mapa Curricular',      'route'=>'',   'icon'=>'far fa-circle', 'can'=>'ver programas'],
+                ['text'=>'Listado de Programas', 'url'=>'#',  'icon'=>'far fa-circle', 'can'=>'ver programas'],
+                ['text'=>'Crear Programa',       'url'=>'#', 'icon'=>'far fa-circle', 'can'=>'crear programas'],
+                ['text'=>'Mapa Curricular',      'url'=>'#',   'icon'=>'far fa-circle', 'can'=>'ver programas'],
             ],
         ],
 
@@ -345,9 +345,9 @@ return [
             'icon' => 'bi bi-boxes',
             'can'  => 'ver grupos',
             'submenu' => [
-                ['text'=>'Listado de Grupos', 'route'=>'',  'icon'=>'far fa-circle', 'can'=>'ver grupos'],
-                ['text'=>'Crear Grupo',       'route'=>'', 'icon'=>'far fa-circle', 'can'=>'crear grupos'],
-                ['text'=>'Asignaciones',      'route'=>'', 'icon'=>'far fa-circle', 'can'=>'asignar profesor'],
+                ['text'=>'Listado de Grupos', 'url'=>'#',  'icon'=>'far fa-circle', 'can'=>'ver grupos'],
+                ['text'=>'Crear Grupo',       'url'=>'#', 'icon'=>'far fa-circle', 'can'=>'crear grupos'],
+                ['text'=>'Asignaciones',      'url'=>'#', 'icon'=>'far fa-circle', 'can'=>'asignar profesor'],
             ],
         ],
 
@@ -356,9 +356,9 @@ return [
             'icon' => 'fas fa-building',
             'can'  => 'ver salones',
             'submenu' => [
-                ['text'=>'Listado de Salones', 'route'=>'',  'icon'=>'far fa-circle', 'can'=>'ver salones'],
-                ['text'=>'Crear Salón',        'route'=>'', 'icon'=>'far fa-circle', 'can'=>'crear salones'],
-                ['text'=>'Laboratorios',       'route'=>'',   'icon'=>'far fa-circle', 'can'=>'ver salones'],
+                ['text'=>'Listado de Salones', 'url'=>'#',  'icon'=>'far fa-circle', 'can'=>'ver salones'],
+                ['text'=>'Crear Salón',        'url'=>'#', 'icon'=>'far fa-circle', 'can'=>'crear salones'],
+                ['text'=>'Laboratorios',       'url'=>'#',   'icon'=>'far fa-circle', 'can'=>'ver salones'],
             ],
         ],
 
@@ -367,10 +367,10 @@ return [
             'icon' => 'fas fa-clock',
             'can'  => 'ver horarios',
             'submenu' => [
-                ['text'=>'Asignación Manual',     'route'=>'horarios.manual.index',     'icon'=>'bi bi-stopwatch', 'can'=>'ver horario laboratorio'],
-                ['text'=>'Intercambiar Horarios',  'route'=>'horarios.intercambio.index',    'icon'=>'bi bi-shuffle', 'can'=>'intercambiar horarios'],
-                ['text'=>'Horarios de Grupos',  'route'=>'horarios.grupos.index',    'icon'=>'bi bi-hourglass-split', 'can'=>'intercambiar horarios'],
-                ['text'=>'Horarios de Profesores',  'route'=>'horarios.profesores.index',    'icon'=>'bi bi-person-video3', 'can'=>'intercambiar horarios'],
+                ['text'=>'Asignación Manual',     'url'=>'horarios/manual',     'icon'=>'bi bi-stopwatch', 'can'=>'ver horario laboratorio'],
+                ['text'=>'Intercambiar Horarios',  'url'=>'horarios/intercambio',    'icon'=>'bi bi-shuffle', 'can'=>'intercambiar horarios'],
+                ['text'=>'Horarios de Grupos',  'url'=>'horarios/grupos',    'icon'=>'bi bi-hourglass-split', 'can'=>'intercambiar horarios'],
+                ['text'=>'Horarios de Profesores',  'url'=>'horarios/profesores',    'icon'=>'bi bi-person-video3', 'can'=>'intercambiar horarios'],
             ],
         ],
 
@@ -383,7 +383,7 @@ return [
             'submenu' => [
                 [
                     'text'   => 'Listado General',
-                    'route'  => 'configuracion.index',
+                    'url'  => 'configuracion',
                     'icon'   => 'bi bi-building-gear',
                     'can'    => 'ver configuraciones',
                     // Activo exactamente en /configuracion
@@ -391,7 +391,7 @@ return [
                 ],
                 [
                     'text'   => 'Usuarios',
-                    'route'  => 'configuracion.usuarios.index',
+                    'url'  => 'configuracion/usuarios',
                     'icon'   => 'bi bi-person-lines-fill',
                     'can'    => 'ver usuarios',
                     // Activo para cualquier /configuracion/usuarios...
@@ -399,28 +399,28 @@ return [
                 ],
                 [
                     'text'   => 'Roles',
-                    'route'  => 'configuracion.roles.index',
+                    'url'  => 'configuracion/roles',
                     'icon'   => 'bi bi-journal-bookmark',
                     'can'    => 'ver roles',
                     'active' => ['configuracion/roles*'],
                 ],
                 [
                     'text'   => 'Calendario Escolar',
-                    'route'  => 'configuracion.calendario-escolar.index',
+                    'url'  => '#',
                     'icon'   => 'bi bi-calendar2-week',
                     'can'    => 'ver calendario escolar',
                     'active' => ['configuracion/calendario-escolar*'],
                 ],
                 [
                     'text'   => 'Horarios Pasados',
-                    'route'  => 'configuracion.horarios-pasados.index',
+                    'url'  => '#',
                     'icon'   => 'bi bi-hourglass-split',
                     'can'    => 'ver horarios pasados',
                     'active' => ['configuracion/horarios-pasados*'],
                 ],
                 [
                     'text'   => 'Registro de Actividad',
-                    'route'  => 'configuracion.registro-actividad.index',
+                    'url'  => 'configuracion/registro-actividad',
                     'icon'   => 'bi bi-activity',
                     'can'    => 'ver registro actividad',
                     'active' => ['configuracion/registro-actividad*'],

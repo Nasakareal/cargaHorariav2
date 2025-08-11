@@ -4,27 +4,36 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateActividadGeneralTable extends Migration
-{
-    public function up()
+return new class extends Migration {
+    public function up(): void
     {
-        Schema::create('actividad_general', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedInteger('usuario_id');
-            $table->string('nombre_usuario', 255);
-            $table->string('accion', 100); // Crear, Editar, Eliminar, etc.
-            $table->string('tabla', 100);
-            $table->unsignedBigInteger('registro_id')->nullable(); // ID del registro afectado
-            $table->text('descripcion')->nullable(); // Descripción opcional
-            $table->timestamp('fecha')->default(DB::raw('CURRENT_TIMESTAMP'));
-
-            // Clave foránea opcional (puedes quitarla si no quieres relación directa)
-            $table->foreign('usuario_id')->references('id_usuario')->on('usuarios')->onDelete('cascade');
-        });
+        if (!Schema::hasTable('actividad_general')) {
+            Schema::create('actividad_general', function (Blueprint $t) {
+                $t->bigIncrements('id');
+                $t->unsignedInteger('usuario_id');
+                $t->string('nombre_usuario', 255);
+                $t->string('accion', 100);
+                $t->string('tabla', 100);
+                $t->unsignedBigInteger('registro_id')->nullable();
+                $t->text('descripcion')->nullable();
+                $t->timestamp('fecha')->useCurrent();
+            });
+        } else {
+            Schema::table('actividad_general', function (Blueprint $t) {
+                if (!Schema::hasColumn('actividad_general','id'))            $t->bigIncrements('id');
+                if (!Schema::hasColumn('actividad_general','usuario_id'))     $t->unsignedInteger('usuario_id');
+                if (!Schema::hasColumn('actividad_general','nombre_usuario')) $t->string('nombre_usuario',255);
+                if (!Schema::hasColumn('actividad_general','accion'))         $t->string('accion',100);
+                if (!Schema::hasColumn('actividad_general','tabla'))          $t->string('tabla',100);
+                if (!Schema::hasColumn('actividad_general','registro_id'))    $t->unsignedBigInteger('registro_id')->nullable();
+                if (!Schema::hasColumn('actividad_general','descripcion'))    $t->text('descripcion')->nullable();
+                if (!Schema::hasColumn('actividad_general','fecha'))          $t->timestamp('fecha')->useCurrent();
+            });
+        }
     }
 
-    public function down()
+    public function down(): void
     {
         Schema::dropIfExists('actividad_general');
     }
-}
+};
