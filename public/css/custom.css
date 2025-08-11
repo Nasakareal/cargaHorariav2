@@ -1,0 +1,11 @@
+/* Sidebar claro: subitems siempre visibles */
+.sidebar-light .nav-sidebar .nav-treeview > .nav-item > .nav-link,
+.sidebar-light .nav-sidebar .nav-treeview > .nav-item > .nav-link > p,
+.sidebar-light .nav-sidebar .nav-treeview > .nav-item > .nav-link .nav-icon {
+    color: #111 !important;
+    opacity: 1 !important;
+}
+
+    .sidebar-light .nav-sidebar .nav-treeview > .nav-item > .nav-link:hover {
+        background: rgba(0,0,0,.06) !important;
+    }

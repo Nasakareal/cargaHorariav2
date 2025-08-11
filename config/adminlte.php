@@ -1,0 +1,603 @@
+<?php
+
+return [
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Title
+    |--------------------------------------------------------------------------
+    |
+    | Here you can change the default title of your admin panel.
+    |
+    | For detailed instructions you can look the title section here:
+    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
+    |
+    */
+
+    'title' => '',
+    'title_prefix' => '',
+    'title_postfix' => '',
+
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Favicon
+    |--------------------------------------------------------------------------
+    |
+    | Here you can activate the favicon.
+    |
+    | For detailed instructions you can look the favicon section here:
+    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
+    |
+    */
+
+    'use_ico_only' => true,
+    'use_full_favicon' => false,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Google Fonts
+    |--------------------------------------------------------------------------
+    |
+    | Here you can allow or not the use of external google fonts. Disabling the
+    | google fonts may be useful if your admin panel internet access is
+    | restricted somehow.
+    |
+    | For detailed instructions you can look the google fonts section here:
+    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
+    |
+    */
+
+    'google_fonts' => [
+        'allowed' => true,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Admin Panel Logo
+    |--------------------------------------------------------------------------
+    |
+    | Here you can change the logo of your admin panel.
+    |
+    | For detailed instructions you can look the logo section here:
+    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
+    |
+    */
+
+    'logo' => '<b>Carga Horaria</b>',
+    'logo_img' => 'preloader.png',
+    'logo_img_class' => 'brand-image img-circle elevation-3',
+    'logo_img_xl' => null,
+    'logo_img_xl_class' => '',
+    'logo_img_alt' => 'Carga Horaria',
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Authentication Logo
+    |--------------------------------------------------------------------------
+    |
+    | Here you can setup an alternative logo to use on your login and register
+    | screens. When disabled, the admin panel logo will be used instead.
+    |
+    | For detailed instructions you can look the auth logo section here:
+    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
+    |
+    */
+
+    'auth_logo' => [
+        'enabled' => false,
+        'img' => [
+            'path' => null,
+            'alt' => '',
+            'class' => '',
+            'width' => null,
+            'height' => null,
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Preloader Animation
+    |--------------------------------------------------------------------------
+    |
+    | Here you can change the preloader animation configuration. Currently, two
+    | modes are supported: 'fullscreen' for a fullscreen preloader animation
+    | and 'cwrapper' to attach the preloader animation into the content-wrapper
+    | element and avoid overlapping it with the sidebars and the top navbar.
+    |
+    | For detailed instructions you can look the preloader section here:
+    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
+    |
+    */
+
+    'preloader' => [
+        'enabled' => true,
+        'mode' => 'fullscreen',
+        'img' => [
+            'path' => 'preloader.png', // 👈 Ruta relativa desde public/
+            'alt' => 'Sistema de Carga Horaria',
+            'effect' => 'animation__shake', // puedes quitar el efecto si no lo quieres
+            'width' => 120, // aquí puedes agrandar el tamaño
+            'height' => 120,
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | User Menu
+    |--------------------------------------------------------------------------
+    |
+    | Here you can activate and change the user menu.
+    |
+    | For detailed instructions you can look the user menu section here:
+    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
+    |
+    */
+
+    'usermenu_enabled' => true,
+    'usermenu_header' => false,
+    'usermenu_image' => true,
+    'usermenu_desc' => true,
+    'usermenu_profile_url' => true,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Layout
+    |--------------------------------------------------------------------------
+    |
+    | Here we change the layout of your admin panel.
+    |
+    | For detailed instructions you can look the layout section here:
+    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Layout-and-Styling-Configuration
+    |
+    */
+
+    'layout_topnav' => null,
+    'layout_boxed' => null,
+    'layout_fixed_sidebar' => null,
+    'layout_fixed_navbar' => null,
+    'layout_fixed_footer' => null,
+    'layout_dark_mode' => null,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Authentication Views Classes
+    |--------------------------------------------------------------------------
+    |
+    | Here you can change the look and behavior of the authentication views.
+    |
+    | For detailed instructions you can look the auth classes section here:
+    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Layout-and-Styling-Configuration
+    |
+    */
+
+    'classes_auth_card' => 'card-outline card-primary',
+    'classes_auth_header' => '',
+    'classes_auth_body' => '',
+    'classes_auth_footer' => '',
+    'classes_auth_icon' => '',
+    'classes_auth_btn' => 'btn-flat btn-primary',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Admin Panel Classes
+    |--------------------------------------------------------------------------
+    |
+    | Here you can change the look and behavior of the admin panel.
+    |
+    | For detailed instructions you can look the admin panel classes here:
+    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Layout-and-Styling-Configuration
+    |
+    */
+
+    'classes_body' => '',
+    'classes_brand' => '',
+    'classes_brand_text' => '',
+    'classes_content_wrapper' => '',
+    'classes_content_header' => '',
+    'classes_content' => '',
+    'classes_sidebar' => 'sidebar-light elevation-4',
+    'classes_sidebar_nav' => 'nav-flat nav-legacy',
+    'classes_topnav' => 'navbar-white navbar-light',
+    'classes_topnav_nav' => 'navbar-expand',
+    'classes_topnav_container' => 'container',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sidebar
+    |--------------------------------------------------------------------------
+    |
+    | Here we can modify the sidebar of the admin panel.
+    |
+    | For detailed instructions you can look the sidebar section here:
+    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Layout-and-Styling-Configuration
+    |
+    */
+
+    'sidebar_mini' => 'lg',
+    'sidebar_collapse' => false,
+    'sidebar_collapse_auto_size' => false,
+    'sidebar_collapse_remember' => false,
+    'sidebar_collapse_remember_no_transition' => true,
+    'sidebar_scrollbar_theme' => 'os-theme-light',
+    'sidebar_scrollbar_auto_hide' => 'l',
+    'sidebar_nav_accordion' => true,
+    'sidebar_nav_animation_speed' => 300,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Control Sidebar (Right Sidebar)
+    |--------------------------------------------------------------------------
+    |
+    | Here we can modify the right sidebar aka control sidebar of the admin panel.
+    |
+    | For detailed instructions you can look the right sidebar section here:
+    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Layout-and-Styling-Configuration
+    |
+    */
+
+    'right_sidebar' => false,
+    'right_sidebar_icon' => 'fas fa-cogs',
+    'right_sidebar_theme' => 'dark',
+    'right_sidebar_slide' => true,
+    'right_sidebar_push' => true,
+    'right_sidebar_scrollbar_theme' => 'os-theme-light',
+    'right_sidebar_scrollbar_auto_hide' => 'l',
+
+    /*
+    |--------------------------------------------------------------------------
+    | URLs
+    |--------------------------------------------------------------------------
+    |
+    | Here we can modify the url settings of the admin panel.
+    |
+    | For detailed instructions you can look the urls section here:
+    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Basic-Configuration
+    |
+    */
+
+    'use_route_url' => false,
+    'dashboard_url' => 'home',
+    'logout_url' => 'logout',
+    'login_url' => 'login',
+    'register_url' => 'register',
+    'password_reset_url' => 'password/reset',
+    'password_email_url' => 'password/email',
+    'profile_url' => false,
+    'disable_darkmode_routes' => false,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Laravel Asset Bundling
+    |--------------------------------------------------------------------------
+    |
+    | Here we can enable the Laravel Asset Bundling option for the admin panel.
+    | Currently, the next modes are supported: 'mix', 'vite' and 'vite_js_only'.
+    | When using 'vite_js_only', it's expected that your CSS is imported using
+    | JavaScript. Typically, in your application's 'resources/js/app.js' file.
+    | If you are not using any of these, leave it as 'false'.
+    |
+    | For detailed instructions you can look the asset bundling section here:
+    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Other-Configuration
+    |
+    */
+
+    'laravel_asset_bundling' => false,
+    'laravel_css_path' => 'css/app.css',
+    'laravel_js_path' => 'js/app.js',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Menu Items
+    |--------------------------------------------------------------------------
+    |
+    | Here we can modify the sidebar/top navigation of the admin panel.
+    |
+    | For detailed instructions you can look here:
+    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Menu-Configuration
+    |
+    */
+    'menu' => [
+        // Navbar
+        ['type' => 'navbar-search', 'text' => 'search', 'topnav_right' => true],
+        ['type' => 'fullscreen-widget', 'topnav_right' => true],
+
+        // Sidebar search
+        ['type' => 'sidebar-menu-search', 'text' => 'search'],
+
+        // ====== BOTONES PRINCIPALES ======
+
+        [
+            'text' => 'Profesores',
+            'icon' => 'fas fa-user-tie',
+            'can'  => 'ver profesores',
+            'submenu' => [
+                ['text'=>'Listado de Profesores', 'route'=>'profesores.index',  'icon'=>'bi bi-person-lines-fill', 'can'=>'ver profesores'],
+                ['text'=>'Horarios Profesores',   'route'=>'', 'icon'=>'bi bi-clock', 'can'=>'crear profesores'],
+            ],
+        ],
+
+        [
+            'text' => 'Materias',
+            'icon' => 'fas fa-book',
+            'can'  => 'ver materias',
+            'submenu' => [
+                ['text'=>'Listado de Materias', 'route'=>'materias.index',  'icon'=>'bi bi-list-columns', 'can'=>'ver materias'],
+            ],
+        ],
+
+        [
+            'text' => 'Programas',
+            'icon' => 'fas fa-layer-group',
+            'can'  => 'ver programas',
+            'submenu' => [
+                ['text'=>'Listado de Programas', 'route'=>'',  'icon'=>'far fa-circle', 'can'=>'ver programas'],
+                ['text'=>'Crear Programa',       'route'=>'', 'icon'=>'far fa-circle', 'can'=>'crear programas'],
+                ['text'=>'Mapa Curricular',      'route'=>'',   'icon'=>'far fa-circle', 'can'=>'ver programas'],
+            ],
+        ],
+
+        [
+            'text' => 'Grupos',
+            'icon' => 'bi bi-boxes',
+            'can'  => 'ver grupos',
+            'submenu' => [
+                ['text'=>'Listado de Grupos', 'route'=>'',  'icon'=>'far fa-circle', 'can'=>'ver grupos'],
+                ['text'=>'Crear Grupo',       'route'=>'', 'icon'=>'far fa-circle', 'can'=>'crear grupos'],
+                ['text'=>'Asignaciones',      'route'=>'', 'icon'=>'far fa-circle', 'can'=>'asignar profesor'],
+            ],
+        ],
+
+        [
+            'text' => 'Salones',
+            'icon' => 'fas fa-building',
+            'can'  => 'ver salones',
+            'submenu' => [
+                ['text'=>'Listado de Salones', 'route'=>'',  'icon'=>'far fa-circle', 'can'=>'ver salones'],
+                ['text'=>'Crear Salón',        'route'=>'', 'icon'=>'far fa-circle', 'can'=>'crear salones'],
+                ['text'=>'Laboratorios',       'route'=>'',   'icon'=>'far fa-circle', 'can'=>'ver salones'],
+            ],
+        ],
+
+        [
+            'text' => 'Horarios',
+            'icon' => 'fas fa-clock',
+            'can'  => 'ver horarios',
+            'submenu' => [
+                ['text'=>'Asignación Manual',     'route'=>'horarios.manual.index',     'icon'=>'bi bi-stopwatch', 'can'=>'ver horario laboratorio'],
+                ['text'=>'Intercambiar Horarios',  'route'=>'horarios.intercambio.index',    'icon'=>'bi bi-shuffle', 'can'=>'intercambiar horarios'],
+                ['text'=>'Horarios de Grupos',  'route'=>'horarios.grupos.index',    'icon'=>'bi bi-hourglass-split', 'can'=>'intercambiar horarios'],
+                ['text'=>'Horarios de Profesores',  'route'=>'horarios.profesores.index',    'icon'=>'bi bi-person-video3', 'can'=>'intercambiar horarios'],
+            ],
+        ],
+
+        [
+            'text'   => 'Configuraciones',
+            'icon'   => 'bi bi-gear-wide-connected',
+            'can'    => 'ver configuraciones',
+            // Abre el grupo cuando la URL esté bajo /configuracion
+            'active' => ['configuracion', 'configuracion/*'],
+            'submenu' => [
+                [
+                    'text'   => 'Listado General',
+                    'route'  => 'configuracion.index',
+                    'icon'   => 'bi bi-building-gear',
+                    'can'    => 'ver configuraciones',
+                    // Activo exactamente en /configuracion
+                    'active' => ['configuracion', 'configuracion/'],
+                ],
+                [
+                    'text'   => 'Usuarios',
+                    'route'  => 'configuracion.usuarios.index',
+                    'icon'   => 'bi bi-person-lines-fill',
+                    'can'    => 'ver usuarios',
+                    // Activo para cualquier /configuracion/usuarios...
+                    'active' => ['configuracion/usuarios*'],
+                ],
+                [
+                    'text'   => 'Roles',
+                    'route'  => 'configuracion.roles.index',
+                    'icon'   => 'bi bi-journal-bookmark',
+                    'can'    => 'ver roles',
+                    'active' => ['configuracion/roles*'],
+                ],
+                [
+                    'text'   => 'Calendario Escolar',
+                    'route'  => 'configuracion.calendario-escolar.index',
+                    'icon'   => 'bi bi-calendar2-week',
+                    'can'    => 'ver calendario escolar',
+                    'active' => ['configuracion/calendario-escolar*'],
+                ],
+                [
+                    'text'   => 'Horarios Pasados',
+                    'route'  => 'configuracion.horarios-pasados.index',
+                    'icon'   => 'bi bi-hourglass-split',
+                    'can'    => 'ver horarios pasados',
+                    'active' => ['configuracion/horarios-pasados*'],
+                ],
+                [
+                    'text'   => 'Registro de Actividad',
+                    'route'  => 'configuracion.registro-actividad.index',
+                    'icon'   => 'bi bi-activity',
+                    'can'    => 'ver registro actividad',
+                    'active' => ['configuracion/registro-actividad*'],
+                ],
+            ],
+        ]
+
+    ],
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Menu Filters
+    |--------------------------------------------------------------------------
+    |
+    | Here we can modify the menu filters of the admin panel.
+    |
+    | For detailed instructions you can look the menu filters section here:
+    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Menu-Configuration
+    |
+    */
+
+    'filters' => [
+        JeroenNoten\LaravelAdminLte\Menu\Filters\GateFilter::class,
+        JeroenNoten\LaravelAdminLte\Menu\Filters\HrefFilter::class,
+        JeroenNoten\LaravelAdminLte\Menu\Filters\SearchFilter::class,
+        JeroenNoten\LaravelAdminLte\Menu\Filters\ActiveFilter::class,
+        JeroenNoten\LaravelAdminLte\Menu\Filters\ClassesFilter::class,
+        JeroenNoten\LaravelAdminLte\Menu\Filters\LangFilter::class,
+        JeroenNoten\LaravelAdminLte\Menu\Filters\DataFilter::class,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Plugins Initialization
+    |--------------------------------------------------------------------------
+    |
+    | Here we can modify the plugins used inside the admin panel.
+    |
+    | For detailed instructions you can look the plugins section here:
+    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Plugins-Configuration
+    |
+    */
+
+    'plugins' => [
+        'Datatables' => [
+            'active' => true,
+            'files' => [
+                [
+                    'type' => 'js',
+                    'asset' => false,
+                    'location' => '//cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js',
+                ],
+                [
+                    'type' => 'js',
+                    'asset' => false,
+                    'location' => '//cdn.datatables.net/1.10.19/js/dataTables.bootstrap4.min.js',
+                ],
+                [
+                    'type' => 'css',
+                    'asset' => false,
+                    'location' => '//cdn.datatables.net/1.10.19/css/dataTables.bootstrap4.min.css',
+                ],
+            ],
+        ],
+        'Select2' => [
+            'active' => false,
+            'files' => [
+                [
+                    'type' => 'js',
+                    'asset' => false,
+                    'location' => '//cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/js/select2.min.js',
+                ],
+                [
+                    'type' => 'css',
+                    'asset' => false,
+                    'location' => '//cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/css/select2.css',
+                ],
+            ],
+        ],
+        'Chartjs' => [
+            'active' => false,
+            'files' => [
+                [
+                    'type' => 'js',
+                    'asset' => false,
+                    'location' => '//cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.0/Chart.bundle.min.js',
+                ],
+            ],
+        ],
+        'Sweetalert2' => [
+            'active' => true,
+            'files' => [
+                [
+                    'type' => 'js',
+                    'asset' => false,
+                    'location' => '//cdn.jsdelivr.net/npm/sweetalert2@8',
+                ],
+            ],
+        ],
+        'Pace' => [
+            'active' => false,
+            'files' => [
+                [
+                    'type' => 'css',
+                    'asset' => false,
+                    'location' => '//cdnjs.cloudflare.com/ajax/libs/pace/1.0.2/themes/blue/pace-theme-center-radar.min.css',
+                ],
+                [
+                    'type' => 'js',
+                    'asset' => false,
+                    'location' => '//cdnjs.cloudflare.com/ajax/libs/pace/1.0.2/pace.min.js',
+                ],
+            ],
+        ],
+        'BootstrapIcons' => [
+            'active' => true,
+            'files' => [
+                [
+                    'type' => 'css',
+                    'asset' => false,
+                    'location' => 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css',
+                ],
+            ],
+        ],
+        'CustomCss' => [
+            'active' => true,
+            'files' => [
+                ['type' => 'css', 'asset' => true, 'location' => 'css/custom.css'],
+            ],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | IFrame
+    |--------------------------------------------------------------------------
+    |
+    | Here we change the IFrame mode configuration. Note these changes will
+    | only apply to the view that extends and enable the IFrame mode.
+    |
+    | For detailed instructions you can look the iframe mode section here:
+    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/IFrame-Mode-Configuration
+    |
+    */
+
+    'iframe' => [
+        'default_tab' => [
+            'url' => null,
+            'title' => null,
+        ],
+        'buttons' => [
+            'close' => true,
+            'close_all' => true,
+            'close_all_other' => true,
+            'scroll_left' => true,
+            'scroll_right' => true,
+            'fullscreen' => true,
+        ],
+        'options' => [
+            'loading_screen' => 1000,
+            'auto_show_new_tab' => true,
+            'use_navbar_items' => true,
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Livewire
+    |--------------------------------------------------------------------------
+    |
+    | Here we can enable the Livewire support.
+    |
+    | For detailed instructions you can look the livewire here:
+    | https://github.com/jeroennoten/Laravel-AdminLTE/wiki/Other-Configuration
+    |
+    */
+
+    'livewire' => false,
+];
