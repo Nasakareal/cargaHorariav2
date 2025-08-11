@@ -3,7 +3,9 @@
     "",
     "\\app",
     "\\app\\Http",
-    "\\app\\Http\\Controllers"
+    "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Config"
   ],
+  "SelectedNode": "\\app\\Http\\Controllers\\Config\\RegistroActividadController.php",
   "PreviewInSolutionExplorer": false
 }
