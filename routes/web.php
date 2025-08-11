@@ -6,11 +6,11 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PerfilController;
 
-// Profesores
+// Materias
 use App\Http\Controllers\SubjectController;
 
-// Materias
-use App\Http\Controllers\Materiasontroller;
+// Profesores
+use App\Http\Controllers\ProfesorController;
 
 //Horarios
 use App\Http\Controllers\Horarios\HorarioManualController;
@@ -122,8 +122,7 @@ Route::prefix('horarios')->name('horarios.')->middleware('can:ver horario labora
 // =================== CONFIGURACIÓN ===================
 Route::prefix('configuracion')->middleware('auth','can:ver configuraciones')->name('configuracion.')->group(function () {
 
-    Route::get('/', [App\Http\Controllers\Config\ConfiguracionController::class, 'index'])
-        ->name('index');
+    Route::get('/', [App\Http\Controllers\Config\ConfiguracionController::class, 'index'])->name('index');
 
 
     // ----- Usuarios -----
