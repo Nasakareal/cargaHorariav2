@@ -3,8 +3,32 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\cargaHorariav2\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\config\\adminlte.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:config\\adminlte.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\database\\seeders\\RolesPermisosSeeder.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:database\\seeders\\RolesPermisosSeeder.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\database\\seeders\\DatabaseSeeder.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:database\\seeders\\DatabaseSeeder.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2025_08_08_023736_create_actividad_general_table.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:database\\migrations\\2025_08_08_023736_create_actividad_general_table.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2025_08_08_015250_create_permission_tables.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:database\\migrations\\2025_08_08_015250_create_permission_tables.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\app\\Providers\\AppServiceProvider.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Providers\\AppServiceProvider.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\configuracion\\roles\\index.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\configuracion\\roles\\index.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Config\\RolController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\Config\\RolController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -19,14 +43,92 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "adminlte.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\config\\adminlte.php",
-              "RelativeDocumentMoniker": "config\\adminlte.php",
-              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\config\\adminlte.php",
-              "RelativeToolTip": "config\\adminlte.php",
-              "ViewState": "AgIAAGEBAAAAAAAAAAAkwHQBAABXAAAAAAAAAA==",
+              "Title": "RolesPermisosSeeder.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\database\\seeders\\RolesPermisosSeeder.php",
+              "RelativeDocumentMoniker": "database\\seeders\\RolesPermisosSeeder.php",
+              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\database\\seeders\\RolesPermisosSeeder.php",
+              "RelativeToolTip": "database\\seeders\\RolesPermisosSeeder.php",
+              "ViewState": "AgIAAIUAAAAAAAAAAAAAAJIAAAAkAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-08-10T17:22:36.333Z",
+              "WhenOpened": "2025-08-11T03:36:21.997Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "DatabaseSeeder.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\database\\seeders\\DatabaseSeeder.php",
+              "RelativeDocumentMoniker": "database\\seeders\\DatabaseSeeder.php",
+              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\database\\seeders\\DatabaseSeeder.php",
+              "RelativeToolTip": "database\\seeders\\DatabaseSeeder.php",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2025-08-11T03:35:18.869Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "2025_08_08_023736_create_actividad_general_table.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2025_08_08_023736_create_actividad_general_table.php",
+              "RelativeDocumentMoniker": "database\\migrations\\2025_08_08_023736_create_actividad_general_table.php",
+              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2025_08_08_023736_create_actividad_general_table.php",
+              "RelativeToolTip": "database\\migrations\\2025_08_08_023736_create_actividad_general_table.php",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAACcAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2025-08-11T03:34:41.268Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "2025_08_08_015250_create_permission_tables.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2025_08_08_015250_create_permission_tables.php",
+              "RelativeDocumentMoniker": "database\\migrations\\2025_08_08_015250_create_permission_tables.php",
+              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2025_08_08_015250_create_permission_tables.php",
+              "RelativeToolTip": "database\\migrations\\2025_08_08_015250_create_permission_tables.php",
+              "ViewState": "AgIAAEMAAAAAAAAAAAAkwHcAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2025-08-11T03:27:19.939Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "AppServiceProvider.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\app\\Providers\\AppServiceProvider.php",
+              "RelativeDocumentMoniker": "app\\Providers\\AppServiceProvider.php",
+              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\app\\Providers\\AppServiceProvider.php",
+              "RelativeToolTip": "app\\Providers\\AppServiceProvider.php",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABYAAAAnAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2025-08-11T03:25:38.516Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "RolController.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Config\\RolController.php",
+              "RelativeDocumentMoniker": "app\\Http\\Controllers\\Config\\RolController.php",
+              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Config\\RolController.php",
+              "RelativeToolTip": "app\\Http\\Controllers\\Config\\RolController.php",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABQAAAAbAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2025-08-11T03:20:24.348Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "index.blade.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\configuracion\\roles\\index.blade.php",
+              "RelativeDocumentMoniker": "resources\\views\\configuracion\\roles\\index.blade.php",
+              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\configuracion\\roles\\index.blade.php",
+              "RelativeToolTip": "resources\\views\\configuracion\\roles\\index.blade.php",
+              "ViewState": "AgIAAAMAAAAAAAAAAAAAACcAAAAjAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2025-08-11T03:19:37.685Z",
               "EditorCaption": ""
             }
           ]
