@@ -31,10 +31,10 @@
                 <th class="text-center">Materia</th>
                 <th class="text-center">Horas consecutivas</th>
                 <th class="text-center">Horas semanales</th>
-                <th class="text-center">Programas</th>
+                <th class="text-center">Programa</th>
                 <th class="text-center">Cuatrimestre</th>
                 <th class="text-center">Unidades</th>
-                <th class="text-center">Acciones</th>
+                <th class="text-center no-export">Acciones</th>
               </tr>
             </thead>
 
@@ -45,15 +45,8 @@
                   $nombre    = $m->subject_name ?? '';
                   $hcons     = $m->max_consecutive_class_hours ?? $m->hours_consecutive ?? '—';
                   $hsem      = $m->weekly_hours ?? 0;
-                  $unidades    = $m->unidades ?? '';
-
-                  // Limitar a 5 como hicimos en profesores
-                  $programasTexto = 'No asignado';
-                  if (!empty($m->programas)) {
-                      $progs = explode(', ', $m->programas);
-                      $programasTexto = implode(', ', array_slice($progs, 0, 5));
-                      if (count($progs) > 5) $programasTexto .= ', ...';
-                  }
+                  $unidades  = $m->unidades ?? '';
+                  $programasTexto = $m->programas ?? '';
 
                   $cuatrosTexto = 'No asignado';
                   if (!empty($m->cuatrimestres)) {
@@ -72,7 +65,7 @@
                   <td class="text-center">{{ $cuatrosTexto }}</td>
                   <td class="text-center">{{ $unidades }}</td>
 
-                  <td class="text-center">
+                  <td class="text-center no-export">
                     <div class="btn-group" role="group">
                       <a href="{{ route('materias.show', $id) }}" class="btn btn-info btn-sm" title="Ver">
                         <i class="bi bi-eye"></i>
@@ -85,15 +78,11 @@
                       @endcan
 
                       @can('eliminar materias')
-                        <form action="{{ route('materias.destroy', $id) }}"
-                              method="POST"
-                              id="formEliminarMateria-{{ $id }}">
+                        <form action="{{ route('materias.destroy', $id) }}" method="POST" id="formEliminarMateria-{{ $id }}">
                           @csrf
                           @method('DELETE')
-                          <button type="button"
-                                  class="btn btn-danger btn-sm"
-                                  onclick="confirmarEliminarMateria('{{ $id }}', this)"
-                                  title="Eliminar">
+                          <button type="button" class="btn btn-danger btn-sm"
+                                  onclick="confirmarEliminarMateria('{{ $id }}', this)" title="Eliminar">
                             <i class="bi bi-trash"></i>
                           </button>
                         </form>
@@ -112,14 +101,28 @@
 </div>
 @endsection
 
+{{-- CSS DataTables + Buttons (solo estilos de Buttons, el core ya lo pone AdminLTE) --}}
+@section('css')
+  <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap4.min.css">
+@endsection
+
 @section('js')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+{{-- SOLO extensiones necesarias (sin repetir DataTables core) --}}
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap4.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.colVis.min.js"></script>
 
 <script>
 function confirmarEliminarMateria(id, btn){
   const form = document.getElementById('formEliminarMateria-' + id);
   if(!form){ console.error('No existe formEliminarMateria-', id); return; }
-
   btn.disabled = true;
 
   Swal.fire({
@@ -137,66 +140,91 @@ function confirmarEliminarMateria(id, btn){
     else { btn.disabled = false; }
   });
 }
-</script>
 
-{{-- Flashes --}}
-@if (session('success'))
-<script>
-Swal.fire({
-  icon: 'success',
-  title: @json(session('success')),
-  showConfirmButton: false,
-  timer: 6500,
-  timerProgressBar: true,
-  position: 'center'
-});
-</script>
-@endif
-
-@if (session('error'))
-<script>
-Swal.fire({
-  icon: 'error',
-  title: 'Ups',
-  text: @json(session('error')),
-  confirmButtonColor: '#E43636',
-  position: 'center'
-});
-</script>
-@endif
-
-@if ($errors->any())
-<script>
-Swal.fire({
-  icon: 'warning',
-  title: 'Revisa los datos',
-  html: `{!! implode('<br>', $errors->all()) !!}`,
-  position: 'center'
-});
-</script>
-@endif
-
-{{-- DataTables --}}
-<script>
 $(function () {
+  // Limpia HTML en exportaciones
+  function limpiar(data){
+    if(typeof data !== 'string') return data;
+    data = data.replace(/<br\s*\/?>/gi, '\n').replace(/\u00A0/g, ' ');
+    return $('<div>').html(data).text().replace(/[ \t]+\n/g, '\n').replace(/[ \t]{2,}/g,' ').trim();
+  }
+
   const dt = $("#tablaMaterias").DataTable({
+    // mantenemos tu UX: buscador + 10 por página
     pageLength: 10,
-    language: {
-      emptyTable: "No hay información",
-      info: "Mostrando _START_ a _END_ de _TOTAL_ Materias",
-      infoEmpty: "Mostrando 0 a 0 de 0 Materias",
-      infoFiltered: "(Filtrado de _MAX_ total Materias)",
-      lengthMenu: "Mostrar _MENU_ Materias",
-      search: "Buscador:",
-      zeroRecords: "Sin resultados encontrados",
-      paginate: { first:"Primero", last:"Último", next:"Siguiente", previous:"Anterior" }
-    },
+    lengthMenu: [[5,10,25,50,100,-1],[5,10,25,50,100,'Todas']],
+    language: { url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json' },
     responsive: true, lengthChange: true, autoWidth: false,
+    // añadimos los botones al layout
+    dom: 'Blfrtip',
     buttons: [
-      { extend:'collection', text:'Opciones', orientation:'landscape', buttons:['copy','pdf','csv','excel','print'] },
+      {
+        extend:'collection',
+        text:'Opciones',
+        buttons: [
+          {
+            extend:'copyHtml5', text:'Copiar',
+            exportOptions:{
+              columns: ':not(.no-export)',
+              stripHtml: true,
+              // SOLO lo filtrado y la página actual
+              modifier: { search:'applied', order:'applied', page:'current' },
+              format: { body:limpiar, header:limpiar }
+            }
+          },
+          {
+            extend:'csvHtml5', text:'CSV', filename:'Materias',
+            exportOptions:{
+              columns: ':not(.no-export)',
+              stripHtml: true,
+              modifier: { search:'applied', order:'applied', page:'current' },
+              format: { body:limpiar, header:limpiar }
+            }
+          },
+          {
+            extend:'excelHtml5', text:'Excel', filename:'Materias',
+            exportOptions:{
+              columns: ':not(.no-export)',
+              stripHtml: true,
+              modifier: { search:'applied', order:'applied', page:'current' },
+              format: { body:limpiar, header:limpiar }
+            }
+          },
+          {
+            extend:'pdfHtml5', text:'PDF', filename:'Materias', title:'Listado de Materias',
+            orientation:'landscape', pageSize:'LEGAL',
+            exportOptions:{
+              columns: ':not(.no-export)',
+              stripHtml: true,
+              modifier: { search:'applied', order:'applied', page:'current' },
+              format: { body:limpiar, header:limpiar }
+            },
+            customize: function (doc) {
+              doc.pageMargins = [24,24,24,24];
+              doc.defaultStyle.fontSize = 9;
+              doc.styles.tableHeader = { bold:true, alignment:'center' };
+              const t = doc.content.find(c => c.table);
+              if (t && t.table && t.table.body && t.table.body[0]) {
+                t.table.widths = Array(t.table.body[0].length).fill('*');
+              }
+            }
+          },
+          {
+            extend:'print', text:'Imprimir', title:'Listado de Materias',
+            exportOptions:{
+              columns: ':not(.no-export)',
+              stripHtml: true,
+              modifier: { search:'applied', order:'applied', page:'current' },
+              format: { body:limpiar, header:limpiar }
+            }
+          }
+        ]
+      },
       { extend:'colvis', text:'Visor de columnas', collectionLayout:'fixed three-column' }
     ]
   });
+
+  // ubicar contenedor de botones como te gusta
   dt.buttons().container().appendTo('#tablaMaterias_wrapper .col-md-6:eq(0)');
 });
 </script>

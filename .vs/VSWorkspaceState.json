@@ -2,11 +2,14 @@
   "ExpandedNodes": [
     "",
     "\\app",
-    "\\app\\Providers",
-    "\\database",
-    "\\database\\migrations",
-    "\\database\\seeders"
+    "\\app\\Http",
+    "\\app\\Http\\Controllers",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\grupos",
+    "\\resources\\views\\profesores",
+    "\\routes"
   ],
-  "SelectedNode": "\\database\\migrations\\2025_08_09_041422_create_roles_table_if_missing.php",
+  "SelectedNode": "\\resources\\views\\grupos\\show.blade.php",
   "PreviewInSolutionExplorer": false
 }

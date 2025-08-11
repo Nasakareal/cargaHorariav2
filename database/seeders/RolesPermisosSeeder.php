@@ -13,6 +13,11 @@ class RolesPermisosSeeder extends Seeder
     {
         // ===== Permisos base del sistema de carga horaria =====
         $permisos = [
+
+            // Home
+            'ver grafico',
+            'ver tabla faltante',
+
             // Horarios
             'ver horarios',
             'crear horarios',

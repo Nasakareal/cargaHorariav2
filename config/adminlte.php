@@ -334,20 +334,16 @@ return [
             'icon' => 'fas fa-layer-group',
             'can'  => 'ver programas',
             'submenu' => [
-                ['text'=>'Listado de Programas', 'url'=>'#',  'icon'=>'far fa-circle', 'can'=>'ver programas'],
-                ['text'=>'Crear Programa',       'url'=>'#', 'icon'=>'far fa-circle', 'can'=>'crear programas'],
-                ['text'=>'Mapa Curricular',      'url'=>'#',   'icon'=>'far fa-circle', 'can'=>'ver programas'],
+                ['text'=>'Listado de Programas', 'url'=>'programas',  'icon'=>'bi bi-journal-text', 'can'=>'ver programas'],
             ],
         ],
 
         [
             'text' => 'Grupos',
-            'icon' => 'bi bi-boxes',
+            'icon' => 'bi bi-people-fill',
             'can'  => 'ver grupos',
             'submenu' => [
-                ['text'=>'Listado de Grupos', 'url'=>'#',  'icon'=>'far fa-circle', 'can'=>'ver grupos'],
-                ['text'=>'Crear Grupo',       'url'=>'#', 'icon'=>'far fa-circle', 'can'=>'crear grupos'],
-                ['text'=>'Asignaciones',      'url'=>'#', 'icon'=>'far fa-circle', 'can'=>'asignar profesor'],
+                ['text'=>'Listado de Grupos', 'url'=>'grupos',  'icon'=>'bi bi-card-list', 'can'=>'ver grupos'],
             ],
         ],
 

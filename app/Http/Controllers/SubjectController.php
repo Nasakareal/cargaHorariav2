@@ -16,29 +16,30 @@ class SubjectController extends Controller
     # ===================== INDEX =====================
     public function index()
     {
-        // Agregados por materia desde la tabla puente
-        $aggProg = DB::table('program_term_subjects as pts')
-            ->join('programs as p', 'p.program_id', '=', 'pts.program_id')
-            ->select(
-                'pts.subject_id',
-                DB::raw('GROUP_CONCAT(DISTINCT p.program_name ORDER BY p.program_name SEPARATOR ", ") AS programas')
-            )
-            ->groupBy('pts.subject_id');
+        // Subqueries: un solo programa y un solo cuatrimestre por materia (si vienen por la puente)
+        $progSub = DB::table('program_term_subjects')
+            ->select('subject_id', DB::raw('MIN(program_id) AS program_id'))
+            ->groupBy('subject_id');
 
-        $aggTerm = DB::table('program_term_subjects as pts')
-            ->join('terms as t', 't.term_id', '=', 'pts.term_id')
-            ->select(
-                'pts.subject_id',
-                DB::raw('GROUP_CONCAT(DISTINCT t.term_name ORDER BY t.term_name SEPARATOR ", ") AS cuatrimestres')
-            )
-            ->groupBy('pts.subject_id');
+        $termSub = DB::table('program_term_subjects')
+            ->select('subject_id', DB::raw('MIN(term_id) AS term_id'))
+            ->groupBy('subject_id');
 
-        // Join a los agregados + fallback a subjects.program_id / subjects.term_id
         $materias = DB::table('subjects as s')
-            ->leftJoinSub($aggProg, 'ap', 'ap.subject_id', '=', 's.subject_id')
-            ->leftJoinSub($aggTerm, 'at', 'at.subject_id', '=', 's.subject_id')
-            ->leftJoin('programs as pdir', 'pdir.program_id', '=', 's.program_id')
-            ->leftJoin('terms as tdir', 'tdir.term_id', '=', 's.term_id')
+            // Preferimos el program_id directo; si no existe, usamos el de la puente
+            ->leftJoinSub($progSub, 'pp', 'pp.subject_id', '=', 's.subject_id')
+            ->leftJoin('programs as p_dir', 'p_dir.program_id', '=', 's.program_id')
+            ->leftJoin('programs as p_puente', function ($j) {
+                $j->on('p_puente.program_id', '=', 'pp.program_id');
+            })
+
+            // Igual para term_id: directo y luego puente
+            ->leftJoinSub($termSub, 'tt', 'tt.subject_id', '=', 's.subject_id')
+            ->leftJoin('terms as t_dir', 't_dir.term_id', '=', 's.term_id')
+            ->leftJoin('terms as t_puente', function ($j) {
+                $j->on('t_puente.term_id', '=', 'tt.term_id');
+            })
+
             ->select([
                 's.subject_id',
                 's.subject_name',
@@ -46,14 +47,19 @@ class SubjectController extends Controller
                 's.max_consecutive_class_hours',
                 's.unidades',
                 's.fyh_creacion',
-                DB::raw('COALESCE(NULLIF(ap.programas, ""), pdir.program_name)  AS programas'),
-                DB::raw('COALESCE(NULLIF(at.cuatrimestres, ""), tdir.term_name) AS cuatrimestres'),
+
+                // Si hay programa directo úsalo; si no, el de la puente; si tampoco, NULL
+                DB::raw('COALESCE(p_dir.program_name, p_puente.program_name) AS programas'),
+
+                // Igual para cuatrimestre
+                DB::raw('COALESCE(t_dir.term_name, t_puente.term_name) AS cuatrimestres'),
             ])
             ->orderBy('s.subject_name')
             ->get();
 
         return view('materias.index', compact('materias'));
     }
+
 
     # ===================== CREATE ====================
     public function create()

@@ -3,11 +3,20 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 
+// Welcome
+use App\Http\Controllers\WelcomeController;
+
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PerfilController;
 
 // Materias
+use App\Http\Controllers\ProgramController;
+
+// Materias
 use App\Http\Controllers\SubjectController;
+
+// Grupos
+use App\Http\Controllers\GrupoController;
 
 // Profesores
 use App\Http\Controllers\ProfesorController;
@@ -30,9 +39,7 @@ use App\Http\Controllers\Config\HorarioPasadoController;
 use App\Http\Controllers\Config\RegistroActividadController;
 
 // Página pública de bienvenida
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
 
 // Autenticación (usa tu tabla usuarios) sin registro público
 Auth::routes(['register' => false]);
@@ -49,6 +56,17 @@ Route::middleware('auth')->group(function () {
     Route::post('/perfil/password', [PerfilController::class, 'updatePassword'])->name('perfil.password');
 });
 
+// =================== Programas ===================
+Route::prefix('programas')->name('programas.')->middleware('can:ver programas')->group(function () {
+
+    Route::get('/create', [ProgramController::class, 'create'])->middleware('can:crear programas')->name('create');
+    Route::post('/', [ProgramController::class, 'store'])->middleware('can:crear programas')->name('store');
+    Route::get('/', [ProgramController::class, 'index'])->name('index');
+    Route::get('/{id}', [ProgramController::class, 'show'])->name('show')->whereNumber('id');
+    Route::get('/{id}/edit', [ProgramController::class, 'edit'])->middleware('can:editar programas')->name('edit')->whereNumber('id');
+    Route::put('/{id}', [ProgramController::class, 'update'])->middleware('can:editar programas')->name('update')->whereNumber('id');
+    Route::delete('/{id}', [ProgramController::class, 'destroy'])->middleware('can:eliminar programas')->name('destroy')->whereNumber('id');
+});
 // =================== Profesores ===================
 Route::prefix('profesores')->name('profesores.')->middleware('can:ver profesores')->group(function () {
     Route::get('/',           [ProfesorController::class,'index'])->name('index');
@@ -62,6 +80,17 @@ Route::prefix('profesores')->name('profesores.')->middleware('can:ver profesores
     Route::post('/{id}/ajax/horas',              [ProfesorController::class,'horasProfesor'])->middleware('can:asignar materias')->name('ajax.horas')->whereNumber('id');
     Route::get('/{id}',        [ProfesorController::class,'show'])->name('show')->whereNumber('id');
     Route::delete('/{id}',     [ProfesorController::class,'destroy'])->middleware('can:eliminar profesores')->name('destroy')->whereNumber('id');
+});
+
+// =================== Grupos ===================
+Route::prefix('grupos')->name('grupos.')->middleware('can:ver grupos')->group(function () {
+    Route::get('/',           [GrupoController::class,'index'])->name('index');
+    Route::get('/create',     [GrupoController::class,'create'])->middleware('can:crear grupos')->name('create');
+    Route::post('/',          [GrupoController::class,'store'])->middleware('can:crear grupos')->name('store');
+    Route::get('/{id}/edit',  [GrupoController::class,'edit'])->middleware('can:editar grupos')->name('edit')->whereNumber('id');
+    Route::put('/{id}',       [GrupoController::class,'update'])->middleware('can:editar grupos')->name('update')->whereNumber('id');
+    Route::get('/{id}',       [GrupoController::class,'show'])->name('show')->whereNumber('id');
+    Route::delete('/{id}',    [GrupoController::class,'destroy'])->middleware('can:eliminar grupos')->name('destroy')->whereNumber('id');
 });
 
 
