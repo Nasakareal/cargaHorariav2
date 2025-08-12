@@ -5,12 +5,16 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 use App\Models\User;
 
 class RolesPermisosSeeder extends Seeder
 {
     public function run(): void
     {
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
         // ===== Permisos base del sistema de carga horaria =====
         $permisos = [
 
@@ -46,13 +50,11 @@ class RolesPermisosSeeder extends Seeder
             // Catálogos
             'ver grupos',
             'ver materias',
-            'ver salones',
             'ver turnos',
             'ver periodos',
 
-            // Gestión (opcional según tu flujo)
+            // Gestión
             'asignar profesor',
-            'asignar salon manual',
             'editar limites consecutivos',
             'editar horas semanales',
 
@@ -141,13 +143,25 @@ class RolesPermisosSeeder extends Seeder
             'editar grupos',
             'eliminar grupos',
 
+            // Edificios
+            'ver edificios',
+            'crear edificios',
+            'editar edificios',
+            'eliminar edificios',
+
+            // Laboratorios
+            'ver laboratorios',
+            'crear laboratorios',
+            'editar laboratorios',
+            'eliminar laboratorios',
+
             // Salones
             'ver salones',
             'crear salones',
             'editar salones',
             'eliminar salones',
-            'autoasignar salones',
-            'revertir autoasignacion',
+
+            'ver instituciones',
 
             'exportar horarios pdf',
         ];

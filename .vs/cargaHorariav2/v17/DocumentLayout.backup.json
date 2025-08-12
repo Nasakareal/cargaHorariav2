@@ -3,24 +3,8 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\cargaHorariav2\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2025_08_09_041422_create_roles_table_if_missing.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:database\\migrations\\2025_08_09_041422_create_roles_table_if_missing.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2025_08_08_023736_create_actividad_general_table.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:database\\migrations\\2025_08_08_023736_create_actividad_general_table.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2025_08_08_015250_create_permission_tables.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:database\\migrations\\2025_08_08_015250_create_permission_tables.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2025_08_07_040711_rename_roles_table_for_spatie.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:database\\migrations\\2025_08_07_040711_rename_roles_table_for_spatie.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2014_10_12_100000_create_password_resets_table.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:database\\migrations\\2014_10_12_100000_create_password_resets_table.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\routes\\web.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:routes\\web.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -35,66 +19,14 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "2025_08_09_041422_create_roles_table_if_missing.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2025_08_09_041422_create_roles_table_if_missing.php",
-              "RelativeDocumentMoniker": "database\\migrations\\2025_08_09_041422_create_roles_table_if_missing.php",
-              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2025_08_09_041422_create_roles_table_if_missing.php",
-              "RelativeToolTip": "database\\migrations\\2025_08_09_041422_create_roles_table_if_missing.php",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAACMAAAARAAAAAAAAAA==",
+              "Title": "web.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\routes\\web.php",
+              "RelativeDocumentMoniker": "routes\\web.php",
+              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\routes\\web.php",
+              "RelativeToolTip": "routes\\web.php",
+              "ViewState": "AgIAABUAAAAAAAAAAAAAADUAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-08-11T04:18:59.216Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "2025_08_08_023736_create_actividad_general_table.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2025_08_08_023736_create_actividad_general_table.php",
-              "RelativeDocumentMoniker": "database\\migrations\\2025_08_08_023736_create_actividad_general_table.php",
-              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2025_08_08_023736_create_actividad_general_table.php",
-              "RelativeToolTip": "database\\migrations\\2025_08_08_023736_create_actividad_general_table.php",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAACcAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-08-11T04:18:49.415Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "2025_08_08_015250_create_permission_tables.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2025_08_08_015250_create_permission_tables.php",
-              "RelativeDocumentMoniker": "database\\migrations\\2025_08_08_015250_create_permission_tables.php",
-              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2025_08_08_015250_create_permission_tables.php",
-              "RelativeToolTip": "database\\migrations\\2025_08_08_015250_create_permission_tables.php",
-              "ViewState": "AgIAAEMAAAAAAAAAAAAkwHcAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-08-11T04:18:44.616Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "2025_08_07_040711_rename_roles_table_for_spatie.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2025_08_07_040711_rename_roles_table_for_spatie.php",
-              "RelativeDocumentMoniker": "database\\migrations\\2025_08_07_040711_rename_roles_table_for_spatie.php",
-              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2025_08_07_040711_rename_roles_table_for_spatie.php",
-              "RelativeToolTip": "database\\migrations\\2025_08_07_040711_rename_roles_table_for_spatie.php",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABcAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-08-11T04:18:40.859Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "2014_10_12_100000_create_password_resets_table.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2014_10_12_100000_create_password_resets_table.php",
-              "RelativeDocumentMoniker": "database\\migrations\\2014_10_12_100000_create_password_resets_table.php",
-              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\database\\migrations\\2014_10_12_100000_create_password_resets_table.php",
-              "RelativeToolTip": "database\\migrations\\2014_10_12_100000_create_password_resets_table.php",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-08-11T04:18:36.407Z",
+              "WhenOpened": "2025-08-12T04:00:10.679Z",
               "EditorCaption": ""
             }
           ]

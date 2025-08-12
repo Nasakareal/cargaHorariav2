@@ -266,7 +266,7 @@ return [
     'register_url' => 'register',
     'password_reset_url' => 'password/reset',
     'password_email_url' => 'password/email',
-    'profile_url' => false,
+    'profile_url'   => 'perfil.index',
     'disable_darkmode_routes' => false,
 
     /*
@@ -312,11 +312,10 @@ return [
 
         [
             'text' => 'Profesores',
-            'icon' => 'fas fa-user-tie',
+            'icon' => 'bi bi-person-video3',
             'can'  => 'ver profesores',
             'submenu' => [
                 ['text'=>'Listado de Profesores', 'url'=>'profesores',  'icon'=>'bi bi-person-lines-fill', 'can'=>'ver profesores'],
-                ['text'=>'Horarios Profesores',   'url'=>'#', 'icon'=>'bi bi-clock', 'can'=>'crear profesores'],
             ],
         ],
 
@@ -340,7 +339,7 @@ return [
 
         [
             'text' => 'Grupos',
-            'icon' => 'bi bi-people-fill',
+            'icon' => 'fas fa-users',
             'can'  => 'ver grupos',
             'submenu' => [
                 ['text'=>'Listado de Grupos', 'url'=>'grupos',  'icon'=>'bi bi-card-list', 'can'=>'ver grupos'],
@@ -348,13 +347,14 @@ return [
         ],
 
         [
-            'text' => 'Salones',
-            'icon' => 'fas fa-building',
-            'can'  => 'ver salones',
+            'text' => 'Institución',
+            'icon' => 'fas fa-school',
+            'can'  => 'ver instituciones',
             'submenu' => [
-                ['text'=>'Listado de Salones', 'url'=>'#',  'icon'=>'far fa-circle', 'can'=>'ver salones'],
-                ['text'=>'Crear Salón',        'url'=>'#', 'icon'=>'far fa-circle', 'can'=>'crear salones'],
-                ['text'=>'Laboratorios',       'url'=>'#',   'icon'=>'far fa-circle', 'can'=>'ver salones'],
+                ['text'=>'Listado de la Institución', 'url'=>'institucion',  'icon'=>'bi bi-list-task', 'can'=>'ver instituciones'],
+                ['text'=>'Listado de Edifios',        'url'=>'institucion/edificios', 'icon'=>'bi bi-building-fill', 'can'=>'ver salones'],
+                ['text'=>'Listado de Salones',       'url'=>'institucion/salones',   'icon'=>'bi bi-houses-fill', 'can'=>'ver salones'],
+                ['text'=>'Listado de Laboratorios',       'url'=>'institucion/laboratorios',   'icon'=>'bi bi-buildings-fill', 'can'=>'ver laboratorios'],
             ],
         ],
 

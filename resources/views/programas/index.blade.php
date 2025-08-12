@@ -21,10 +21,6 @@
                   <i class="bi bi-plus-square"></i> Nuevo programa
                 </a>
               @endcan
-
-              <a href="{{ route('programas.index.materias') }}" class="btn btn-outline-primary btn-sm">
-                <i class="bi bi-list-columns-reverse"></i> Ver con materias
-              </a>
             </div>
           </div>
         </div>

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Support\Facades\Hash;
 
 class User extends Authenticatable
 {
@@ -12,20 +13,20 @@ class User extends Authenticatable
 
     protected $table = 'usuarios';
     protected $primaryKey = 'id_usuario';
+    public $incrementing = true;
+    protected $keyType = 'int';
 
-    /** 🔹 Timestamps personalizados */
     public $timestamps = true;
     const CREATED_AT = 'fyh_creacion';
     const UPDATED_AT = 'fyh_actualizacion';
 
-    /** 🔹 Guard para Spatie */
     protected $guard_name = 'web';
 
     protected $fillable = [
         'nombres',
         'email',
         'password',
-        'rol_id', // si lo usas para “reflejar” el rol principal
+        'rol_id',
         'fyh_creacion',
         'fyh_actualizacion',
         'estado',
@@ -33,23 +34,35 @@ class User extends Authenticatable
         'area',
     ];
 
-    protected $hidden = ['password'];
-
+    protected $hidden = ['password', 'remember_token'];
     protected $casts = [
         'fyh_creacion'      => 'datetime',
         'fyh_actualizacion' => 'datetime',
     ];
 
-    /** =========================
-     *  Accesor “rol_nombre” basado en Spatie
-     *  ========================= */
-    public function getRolNombreAttribute()
+    public function getNameAttribute(): string
     {
-        // 1) Rol por Spatie (pivot)
+        return $this->nombres ?: ($this->email ?: 'Usuario');
+    }
+
+    public function setPasswordAttribute($value): void
+    {
+        if (empty($value)) {
+            return;
+        }
+
+        if (is_string($value) && strlen($value) === 60 && str_starts_with($value, '$2y$')) {
+            $this->attributes['password'] = $value;
+        } else {
+            $this->attributes['password'] = Hash::make($value);
+        }
+    }
+
+    public function getRolNombreAttribute(): string
+    {
         $bySpatie = optional($this->roles->first())->name;
         if ($bySpatie) return $bySpatie;
 
-        // 2) Fallback: si guardas rol_id en usuarios, intenta resolver con Spatie por id
         if ($this->rol_id) {
             $role = \Spatie\Permission\Models\Role::find($this->rol_id);
             if ($role) return $role->name;
@@ -58,23 +71,34 @@ class User extends Authenticatable
         return 'Sin rol';
     }
 
-    /** =========================
-     *  AdminLTE helpers
-     *  ========================= */
-    public function adminlte_image()
+    public function adminlte_image(): string
     {
-        return $this->foto_perfil
-            ? asset('uploads/perfiles/'.$this->foto_perfil)
-            : asset('img/default.png');
+        if (!empty($this->foto_perfil)) {
+            $rel = 'uploads/perfiles/' . ltrim($this->foto_perfil, '/');
+            if (is_file(public_path($rel))) {
+                return asset($rel);
+            }
+        }
+
+        $max  = 25;
+        $seed = $this->id_usuario ?: crc32(strtolower((string)($this->email ?? 'guest')));
+        $n    = ((int)$seed % $max) + 1;
+        $relAvatar = "img/avatar/avatar-{$n}.png";
+
+        if (is_file(public_path($relAvatar))) {
+            return asset($relAvatar);
+        }
+
+        return asset('img/default.png');
     }
 
-    public function adminlte_desc()
+    public function adminlte_desc(): string
     {
         return $this->area ?: 'Usuario';
     }
 
     public function adminlte_profile_url()
     {
-        return route('perfil.index');
+        return 'perfil';
     }
 }

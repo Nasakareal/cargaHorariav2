@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
 // Welcome
@@ -27,6 +28,11 @@ use App\Http\Controllers\Horarios\IntercambioHorarioController;
 use App\Http\Controllers\Horarios\HorarioGrupoController;
 use App\Http\Controllers\Horarios\HorarioProfesorController;
 
+// Institucion
+use App\Http\Controllers\Institucion\SalonesController;
+use App\Http\Controllers\Institucion\EdificiosController;
+use App\Http\Controllers\Institucion\LaboratoriosController;
+
 // Configuración
 use App\Http\Controllers\Config\UsuarioController;
 use App\Http\Controllers\Config\RolController;
@@ -50,10 +56,10 @@ Route::get('/home', [HomeController::class, 'index'])
     ->middleware('auth');
 
 
-
 Route::middleware('auth')->group(function () {
-    Route::get('/perfil', [PerfilController::class, 'index'])->name('perfil.index');
-    Route::post('/perfil/password', [PerfilController::class, 'updatePassword'])->name('perfil.password');
+    Route::get('/perfil', [\App\Http\Controllers\PerfilController::class, 'index'])->name('perfil.index');
+    Route::post('/perfil/password', [\App\Http\Controllers\PerfilController::class, 'updatePassword'])->name('perfil.password');
+    Route::post('/perfil/foto', [\App\Http\Controllers\PerfilController::class, 'updatePhoto'])->name('perfil.foto'); // ⬅️ nueva
 });
 
 // =================== Programas ===================
@@ -91,7 +97,36 @@ Route::prefix('grupos')->name('grupos.')->middleware('can:ver grupos')->group(fu
     Route::put('/{id}',       [GrupoController::class,'update'])->middleware('can:editar grupos')->name('update')->whereNumber('id');
     Route::get('/{id}',       [GrupoController::class,'show'])->name('show')->whereNumber('id');
     Route::delete('/{id}',    [GrupoController::class,'destroy'])->middleware('can:eliminar grupos')->name('destroy')->whereNumber('id');
+    Route::get('/{id}/validar-salon/{classroom}', [GrupoController::class,'validarSalon'])->name('validar-salon')->middleware('can:editar grupos')->whereNumber('id')->whereNumber('classroom');
 });
+
+// =================== AJAX: edificio → plantas / salones ===================
+Route::middleware(['auth','can:editar grupos'])->prefix('ajax')->name('ajax.')->group(function () {
+
+        // /ajax/edificios/{building}/plantas   →  name: ajax.edificio.plantas
+        Route::get('/edificios/{building}/plantas', function ($building) {
+            $building = rawurldecode($building);
+
+            $floors = DB::table('classrooms')->where('building', $building)->whereNotNull('floor')->select('floor')->distinct()->orderBy('floor')->pluck('floor')->map(fn($f) => strtoupper((string)$f))->values();
+
+            if ($floors->isEmpty()) {
+                $floors = collect(['BAJA','ALTA']);
+            }
+
+            return response()->json($floors);
+        })->name('edificio.plantas');
+
+        // /ajax/edificios/{building}/plantas/{floor}/salones  →  name: ajax.planta.salones
+        Route::get('/edificios/{building}/plantas/{floor}/salones', function ($building, $floor) {
+            $building = rawurldecode($building);
+            $floor    = strtoupper(rawurldecode($floor));
+
+            $salones = DB::table('classrooms')->where('building', $building)->when($floor !== '' && $floor !== '-', fn($q) => $q->where('floor', $floor))->select('classroom_id','classroom_name')->orderByRaw('CAST(classroom_name AS UNSIGNED), classroom_name')->get();
+
+            return response()->json($salones);
+        })->name('planta.salones');
+});
+
 
 
 // =================== Materias ===================
@@ -145,6 +180,47 @@ Route::prefix('horarios')->name('horarios.')->middleware('can:ver horario labora
         Route::get('/profesores', [HorarioProfesorController::class,'index'])->name('profesores.index');
         Route::get('/profesores/{profesor_id}', [HorarioProfesorController::class,'show'])->whereNumber('profesor_id')->name('profesores.show');
         Route::get('/profesores/{profesor_id}/eventos', [HorarioProfesorController::class,'eventos'])->whereNumber('profesor_id')->name('profesores.eventos');
+    });
+});
+
+// =================== INSTITUCIÓN ===================
+Route::prefix('institucion')->middleware('auth','can:ver instituciones')->name('institucion.')->group(function () {
+
+    Route::get('/', [App\Http\Controllers\Institucion\InstitucionController::class, 'index'])->name('index');
+
+    // ----- Salones -----
+    Route::prefix('salones')->name('salones.')->middleware('can:ver salones')->group(function () {
+        Route::get('/',         [SalonesController::class,'index'])     ->name('index');
+        Route::get('/create',   [SalonesController::class,'create'])    ->middleware('can:crear salones')->name('create');
+        Route::post('/',        [SalonesController::class,'store'])     ->middleware('can:crear salones')->name('store');
+        Route::get('/{id}',     [SalonesController::class,'show'])      ->name('show');
+        Route::get('/{id}/edit',[SalonesController::class,'edit'])      ->middleware('can:editar salones')->name('edit');
+        Route::put('/{id}',     [SalonesController::class,'update'])    ->middleware('can:editar salones')->name('update');
+        Route::delete('/{id}',  [SalonesController::class,'destroy'])   ->middleware('can:eliminar salones')->name('destroy');
+        Route::get('/{id}/horario', [SalonesController::class,'horario'])->name('horario');
+    });
+
+    // ----- Edificios -----
+    Route::prefix('edificios')->name('edificios.')->middleware('can:ver edificios')->group(function () {
+        Route::get('/',         [EdificiosController::class,'index'])     ->name('index');
+        Route::get('/create',   [EdificiosController::class,'create'])    ->middleware('can:crear edificios')->name('create');
+        Route::post('/',        [EdificiosController::class,'store'])     ->middleware('can:crear edificios')->name('store');
+        Route::get('/{id}',     [EdificiosController::class,'show'])      ->name('show');
+        Route::get('/{id}/edit',[EdificiosController::class,'edit'])      ->middleware('can:editar edificios')->name('edit');
+        Route::put('/{id}',     [EdificiosController::class,'update'])    ->middleware('can:editar edificios')->name('update');
+        Route::delete('/{id}',  [EdificiosController::class,'destroy'])   ->middleware('can:eliminar edificios')->name('destroy');
+    });
+
+    // ----- Laboratorios -----
+    Route::prefix('laboratorios')->name('laboratorios.')->middleware('can:ver laboratorios')->group(function () {
+        Route::get('/',         [LaboratoriosController::class,'index'])     ->name('index');
+        Route::get('/create',   [LaboratoriosController::class,'create'])    ->middleware('can:crear laboratorios')->name('create');
+        Route::post('/',        [LaboratoriosController::class,'store'])     ->middleware('can:crear laboratorios')->name('store');
+        Route::get('/{id}',     [LaboratoriosController::class,'show'])      ->name('show');
+        Route::get('/{id}/edit',[LaboratoriosController::class,'edit'])      ->middleware('can:editar laboratorios')->name('edit');
+        Route::put('/{id}',     [LaboratoriosController::class,'update'])    ->middleware('can:editar laboratorios')->name('update');
+        Route::delete('/{id}',  [LaboratoriosController::class,'destroy'])   ->middleware('can:eliminar laboratorios')->name('destroy');
+        Route::get('/{id}/horario', [LaboratoriosController::class,'horario'])->name('horario');
     });
 });
 
