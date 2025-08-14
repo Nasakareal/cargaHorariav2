@@ -56,11 +56,13 @@ Route::get('/home', [HomeController::class, 'index'])
     ->middleware('auth');
 
 
+// routes/web.php
 Route::middleware('auth')->group(function () {
-    Route::get('/perfil', [\App\Http\Controllers\PerfilController::class, 'index'])->name('perfil.index');
-    Route::post('/perfil/password', [\App\Http\Controllers\PerfilController::class, 'updatePassword'])->name('perfil.password');
-    Route::post('/perfil/foto', [\App\Http\Controllers\PerfilController::class, 'updatePhoto'])->name('perfil.foto'); // ⬅️ nueva
+    Route::get('/perfil', [PerfilController::class, 'index'])->name('perfil.index');
+    Route::post('/perfil/password', [PerfilController::class, 'updatePassword'])->name('perfil.password');
+    Route::post('/perfil/foto', [PerfilController::class, 'updatePhoto'])->name('perfil.foto');
 });
+
 
 // =================== Programas ===================
 Route::prefix('programas')->name('programas.')->middleware('can:ver programas')->group(function () {
@@ -73,6 +75,7 @@ Route::prefix('programas')->name('programas.')->middleware('can:ver programas')-
     Route::put('/{id}', [ProgramController::class, 'update'])->middleware('can:editar programas')->name('update')->whereNumber('id');
     Route::delete('/{id}', [ProgramController::class, 'destroy'])->middleware('can:eliminar programas')->name('destroy')->whereNumber('id');
 });
+
 // =================== Profesores ===================
 Route::prefix('profesores')->name('profesores.')->middleware('can:ver profesores')->group(function () {
     Route::get('/',           [ProfesorController::class,'index'])->name('index');
@@ -255,26 +258,62 @@ Route::prefix('configuracion')->middleware('auth','can:ver configuraciones')->na
     });
 
     // ----- Vaciar Base de Datos -----
-    Route::get('vaciar-bd',    [VaciarBDController::class,'index'])->middleware('can:ver vaciar bd')->name('vaciar-bd.index');
-    Route::delete('vaciar-bd', [VaciarBDController::class,'destroy'])->middleware('can:vaciar bd')->name('vaciar-bd.destroy');
+    Route::prefix('vaciar-bd')->name('vaciar-bd.')->middleware('can:ver vaciar bd')->group(function () {
 
-    // ----- Eliminar Materias -----
-    Route::get('eliminar-materias',    [EliminarMateriasController::class,'index'])->middleware('can:ver eliminar materias')->name('eliminar-materias.index');
-    Route::delete('eliminar-materias', [EliminarMateriasController::class,'destroy'])->middleware('can:eliminar materias')->name('eliminar-materias.destroy');
+        // Página principal con tarjetas/opciones
+        Route::get('/', [VaciarBDController::class,'index'])->name('index');
 
-    // ----- Activar Usuarios (botón + interfaz) -----
-    Route::get('activar-usuarios',        [ActivarUsuariosController::class,'index'])->middleware('can:ver activar usuarios')->name('activar-usuarios.index');
-    Route::post('activar-usuarios/{id}',  [ActivarUsuariosController::class,'activar'])->middleware('can:activar usuarios')->name('activar-usuarios.activar');
+        // ===== Grupos =====
+        Route::get('/grupos',  [VaciarBDController::class,'gruposIndex'])->name('grupos.index');
+        Route::delete('/grupos', [VaciarBDController::class,'gruposTruncate'])->middleware('can:vaciar bd')->name('grupos.truncate');
+        Route::delete('/grupos/seleccionados', [VaciarBDController::class,'gruposDestroySelected'])->middleware('can:vaciar bd')->name('grupos.destroy-selected');
+
+        // ===== Materias =====
+        Route::get('/materias', [VaciarBDController::class,'materiasIndex'])->name('materias.index');
+        Route::delete('/materias', [VaciarBDController::class,'materiasTruncate'])->middleware('can:vaciar bd')->name('materias.truncate');
+        Route::delete('/materias/seleccionados', [VaciarBDController::class,'materiasDestroySelected'])->middleware('can:vaciar bd')->name('materias.destroy-selected');
+
+        // ===== Profesores =====
+        Route::get('/profesores', [VaciarBDController::class,'profesoresIndex'])->name('profesores.index');
+        Route::delete('/profesores', [VaciarBDController::class,'profesoresTruncate'])->middleware('can:vaciar bd')->name('profesores.truncate');
+        Route::delete('/profesores/seleccionados', [VaciarBDController::class,'profesoresDestroySelected'])->middleware('can:vaciar bd')->name('profesores.destroy-selected');
+
+        // ===== Asignaciones (materia <-> profesor) =====
+        Route::get('/asignaciones', [VaciarBDController::class,'asignacionesIndex'])->name('asignaciones.index');
+        Route::delete('/asignaciones', [VaciarBDController::class,'asignacionesTruncate'])->middleware('can:vaciar bd')->name('asignaciones.truncate');
+        Route::delete('/asignaciones/seleccionados', [VaciarBDController::class,'asignacionesDestroySelected'])->middleware('can:vaciar bd')->name('asignaciones.destroy-selected');
+
+        // ===== Horario Escolar (auto) =====
+        Route::get('/horario-escolar', [VaciarBDController::class,'horarioEscolarIndex'])->name('horario-escolar.index');
+        Route::delete('/horario-escolar', [VaciarBDController::class,'horarioEscolarTruncate'])->middleware('can:vaciar bd')->name('horario-escolar.truncate');
+
+        // ===== Horario Escolar (manual) =====
+        Route::get('/horario-escolar-manual', [VaciarBDController::class,'horarioEscolarManualIndex'])->name('horario-escolar-manual.index');
+        Route::delete('/horario-escolar-manual', [VaciarBDController::class,'horarioEscolarManualTruncate'])->middleware('can:vaciar bd')->name('horario-escolar-manual.truncate');
+    });
+
+    // ----- Eliminar Materias (quitar asignaciones a un profesor) -----
+    Route::prefix('eliminar-materias')->name('eliminar-materias.')->middleware('can:ver eliminar materias')->group(function () {
+
+        Route::get('/', [EliminarMateriasController::class,'index'])->name('index');
+        Route::get('/profesor/{id}', [EliminarMateriasController::class,'edit'])->middleware('can:eliminar materias')->name('edit')->whereNumber('id');
+        Route::post('/profesor/{id}', [EliminarMateriasController::class,'destroySelected'])->middleware('can:eliminar materias')->name('destroy-selected')->whereNumber('id');
+        Route::post('/profesor/{id}/ajax/materias-asignadas', [EliminarMateriasController::class,'materiasAsignadas'])->middleware('can:eliminar materias')->name('ajax.materias-asignadas')->whereNumber('id');
+        Route::post('/profesor/{id}/ajax/horas', [EliminarMateriasController::class,'horasProfesor'])->middleware('can:eliminar materias')->name('ajax.horas')->whereNumber('id');
+    });
+
+    // ----- Activar/Desactivar Usuarios (masivo, sin vista)
+    Route::get('activar-usuarios/on',  [ActivarUsuariosController::class,'activarTodos'])->middleware('can:activar usuarios')->name('activar-usuarios.on');
+    Route::get('activar-usuarios/off', [ActivarUsuariosController::class,'desactivarTodos'])->middleware('can:activar usuarios')->name('activar-usuarios.off');
 
     // ----- Estadísticas -----
     Route::prefix('estadisticas')->name('estadisticas.')->middleware('can:ver estadisticas')->group(function () {
-        Route::get('/',         [EstadisticaController::class,'index'])->name('index');
-        Route::get('/create',   [EstadisticaController::class,'create'])->middleware('can:crear estadisticas')->name('create');
-        Route::post('/',        [EstadisticaController::class,'store'])->middleware('can:crear estadisticas')->name('store');
-        Route::get('/{id}',     [EstadisticaController::class,'show'])->name('show');
-        Route::get('/{id}/edit',[EstadisticaController::class,'edit'])->middleware('can:editar estadisticas')->name('edit');
-        Route::put('/{id}',     [EstadisticaController::class,'update'])->middleware('can:editar estadisticas')->name('update');
-        Route::delete('/{id}',  [EstadisticaController::class,'destroy'])->middleware('can:eliminar estadisticas')->name('destroy');
+
+            Route::get('/', [EstadisticaController::class, 'index'])->name('index');
+
+            Route::get('/export/grupos',              [EstadisticaController::class, 'exportHorariosGrupos'])->name('export.grupos');
+            Route::get('/export/grupos-sin-profesor', [EstadisticaController::class, 'exportHorariosGruposSinProfesor'])->name('export.grupos-sin-profesor');
+            Route::get('/export/profesores',          [EstadisticaController::class, 'exportHorariosProfesores'])->name('export.profesores');
     });
 
     // ----- Calendario Escolar -----
@@ -301,12 +340,12 @@ Route::prefix('configuracion')->middleware('auth','can:ver configuraciones')->na
 
     // ----- Registro de Actividad -----
     Route::prefix('registro-actividad')->name('registro-actividad.')->middleware('can:ver registro actividad')->group(function () {
-        Route::get('/',        [App\Http\Controllers\Config\RegistroActividadController::class,'index'])->name('index');
-        Route::get('/create',  [App\Http\Controllers\Config\RegistroActividadController::class,'create'])->middleware('can:crear registro actividad')->name('create');
-        Route::post('/',       [App\Http\Controllers\Config\RegistroActividadController::class,'store'])->middleware('can:crear registro actividad')->name('store');
-        Route::get('/{id}',    [App\Http\Controllers\Config\RegistroActividadController::class,'show'])->name('show');
-        Route::get('/{id}/edit',[App\Http\Controllers\Config\RegistroActividadController::class,'edit'])->middleware('can:editar registro actividad')->name('edit');
-        Route::put('/{id}',    [App\Http\Controllers\Config\RegistroActividadController::class,'update'])->middleware('can:editar registro actividad')->name('update');
-        Route::delete('/{id}', [App\Http\Controllers\Config\RegistroActividadController::class,'destroy'])->middleware('can:eliminar registro actividad')->name('destroy');
+        Route::get('/',        [RegistroActividadController::class,'index'])->name('index');
+        Route::get('/create',  [RegistroActividadController::class,'create'])->middleware('can:crear registro actividad')->name('create');
+        Route::post('/',       [RegistroActividadController::class,'store'])->middleware('can:crear registro actividad')->name('store');
+        Route::get('/{id}',    [RegistroActividadController::class,'show'])->name('show');
+        Route::get('/{id}/edit',[RegistroActividadController::class,'edit'])->middleware('can:editar registro actividad')->name('edit');
+        Route::put('/{id}',    [RegistroActividadController::class,'update'])->middleware('can:editar registro actividad')->name('update');
+        Route::delete('/{id}', [RegistroActividadController::class,'destroy'])->middleware('can:eliminar registro actividad')->name('destroy');
     });
 });

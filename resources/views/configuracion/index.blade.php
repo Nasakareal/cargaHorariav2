@@ -61,10 +61,20 @@
     @can('ver activar usuarios')
     <div class="col-12 col-md-6 col-xl-4">
       <div class="info-box">
-        <span class="info-box-icon bg-orange"><i class="bi bi-person-x"></i></span>
+        <span class="info-box-icon bg-orange">
+          <i id="toggle-icon" class="bi bi-person-x"></i>
+        </span>
         <div class="info-box-content">
-          <span class="info-box-text"><b>Activar/Desactivar Usuarios</b></span>
-          <a href="{{ route('configuracion.activar-usuarios.index') }}" class="btn btn-primary btn-sm">Acceder</a>
+          <span class="info-box-text"><b id="toggle-text">Activar Usuarios</b></span>
+
+          {{-- Toggle Switch iOS-like --}}
+          <label class="switch">
+            <input type="checkbox"
+                   id="toggle-switch"
+                   data-url-on="{{ route('configuracion.activar-usuarios.on') }}"
+                   data-url-off="{{ route('configuracion.activar-usuarios.off') }}">
+            <span class="slider"></span>
+          </label>
         </div>
       </div>
     </div>
@@ -121,3 +131,53 @@
   </div>
 </div>
 @endsection
+
+
+{{-- CSS mínimo del switch (tipo iOS) --}}
+<style>
+.switch{position:relative;display:inline-block;width:58px;height:30px}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;inset:0;background:#d1d5db;border-radius:9999px;transition:.25s}
+.slider:before{content:"";position:absolute;height:24px;width:24px;left:3px;top:3px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:.25s}
+input:checked + .slider{background:linear-gradient(135deg,#34d399,#10b981)}
+input:checked + .slider:before{transform:translateX(28px)}
+</style>
+
+{{-- JS: igual al tuyo, pero usando rutas de Laravel --}}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const toggleSwitch = document.getElementById("toggle-switch");
+  const icon = document.getElementById("toggle-icon");
+  const text = document.getElementById("toggle-text");
+
+  const urlOn  = toggleSwitch.dataset.urlOn;
+  const urlOff = toggleSwitch.dataset.urlOff;
+
+  // Cargar estado guardado (solo UI)
+  const estadoGuardado = localStorage.getItem("estadoUsuarios");
+  if (estadoGuardado === "activar") {
+      toggleSwitch.checked = true;
+      icon.className = "bi bi-person-fill-check";
+      text.textContent = "Desactivar Usuarios";
+  } else {
+      toggleSwitch.checked = false;
+      icon.className = "bi bi-person-x";
+      text.textContent = "Activar Usuarios";
+  }
+
+  // Guardar estado y redirigir
+  toggleSwitch.addEventListener("change", function () {
+      if (this.checked) {
+          icon.className = "bi bi-person-fill-check";
+          text.textContent = "Desactivar Usuarios";
+          localStorage.setItem("estadoUsuarios", "activar");
+          window.location.href = urlOn;
+      } else {
+          icon.className = "bi bi-person-x";
+          text.textContent = "Activar Usuarios";
+          localStorage.setItem("estadoUsuarios", "desactivar");
+          window.location.href = urlOff;
+      }
+  });
+});
+</script>

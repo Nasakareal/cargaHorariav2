@@ -135,9 +135,7 @@
   const $gruposElegidos = document.getElementById('gruposElegidos');
   const $form           = document.getElementById('formAsignar');
 
-  // Helpers
   function addHiddenGroup(groupId){
-    // evita duplicados
     if ([...$hiddenGroups.querySelectorAll('input[name="grupos_asignados[]"]')]
         .some(i => i.value === String(groupId))) return;
 
@@ -146,8 +144,6 @@
     i.name  = 'grupos_asignados[]';
     i.value = groupId;
     $hiddenGroups.appendChild(i);
-
-    // pinta chip
     const chip = document.createElement('span');
     chip.className = 'badge bg-primary me-1';
     chip.dataset.groupId = groupId;
@@ -188,12 +184,11 @@
     })
     .then(r => r.text())
     .then(html => {
-      $materiasDisp.innerHTML = html; // viene como <option>… del controlador
+      $materiasDisp.innerHTML = html;
     })
     .catch(() => { $materiasDisp.innerHTML = ''; });
   }
 
-  // Eventos
   $btnConfirmGrp.addEventListener('click', () => {
     const groupId = $gruposSelect.value;
     if (!groupId) return;
@@ -208,10 +203,8 @@
         cancelButtonText: 'No, cancelar',
       }).then((res) => {
         if (!res.isConfirmed) return;
-        // limpiar seleccionadas y horas
         $materiasAsig.innerHTML = '';
         $totalHoras.value = 0;
-        // limpiar hidden groups y agregar el nuevo
         $hiddenGroups.innerHTML = '';
         $gruposElegidos.innerHTML = '';
         addHiddenGroup(groupId);
@@ -234,13 +227,11 @@
   });
 
   $form.addEventListener('submit', () => {
-    // Asegurar que todo lo “asignado” vaya seleccionado
     [...$materiasAsig.options].forEach(o => o.selected = true);
   });
 
-  // Init
   cargarHorasIniciales();
-  calcTotal(); // por si vienen precargadas
+  calcTotal();
 })();
 </script>
 

@@ -36,10 +36,6 @@
         @endforeach
       </tbody>
     </table>
-
-    <div class="mt-3">
-      {{ $actividades->links() }}
-    </div>
   </div>
 </div>
 @endsection

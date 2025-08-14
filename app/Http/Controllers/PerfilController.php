@@ -34,14 +34,17 @@ class PerfilController extends Controller
             return back()->with('error', 'La contraseña actual no coincide.')->withInput();
         }
 
-        $user->password = Hash::make($request->password);
+        $user->password = $request->password; // setPasswordAttribute hace el hash
         $user->fyh_actualizacion = now();
         $user->save();
 
-        // (Opcional) registra actividad si tienes el modelo
+        // (opcional) registrar actividad
         if (class_exists(\App\Models\ActividadGeneral::class)) {
-            \App\Models\ActividadGeneral::registrar('ACTUALIZAR','usuarios',$user->id_usuario,'Actualizó su contraseña');
+            \App\Models\ActividadGeneral::registrar('ACTUALIZAR', 'usuarios', $user->id_usuario, 'Actualizó su contraseña');
         }
+
+        // refrescar sesión
+        auth()->login($user->fresh());
 
         return back()->with('success', 'Contraseña actualizada correctamente.');
     }
@@ -50,62 +53,58 @@ class PerfilController extends Controller
     {
         $user = Auth::user();
 
-        // Puede venir: subir archivo, elegir avatar, o quitar foto
         $request->validate([
             'accion'           => ['required','in:subir,avatar,quitar'],
             'foto'             => ['nullable','image','mimes:jpg,jpeg,png,webp','max:2048'],
-            'selected_avatar'  => ['nullable', 'string', Rule::in($this->avatarList())],
+            'selected_avatar'  => ['nullable','string', Rule::in($this->avatarList())],
         ], [], [
             'foto'            => 'foto de perfil',
             'selected_avatar' => 'avatar',
         ]);
 
-        // Quitar foto → deja el valor en null (usará fallback avatar)
+        // Quitar foto -> deja null (usará fallback determinístico)
         if ($request->accion === 'quitar') {
-            // Si era un archivo subido, puedes borrarlo si quieres:
             if ($user->foto_perfil && !Str::startsWith($user->foto_perfil, 'avatar-')) {
-                $path = public_path('uploads/perfiles/'.$user->foto_perfil);
-                if (File::exists($path)) @File::delete($path);
+                @File::delete(public_path('uploads/perfiles/'.$user->foto_perfil));
             }
             $user->foto_perfil = null;
             $user->fyh_actualizacion = now();
             $user->save();
-
+            auth()->login($user->fresh());
             return back()->with('success','Foto eliminada. Se usará el avatar por defecto.');
         }
 
-        // Elegir uno de los avatares predefinidos
+        // Usar uno de los avatares predefinidos
         if ($request->accion === 'avatar' && $request->selected_avatar) {
-            $user->foto_perfil = $request->selected_avatar; // guardamos "avatar-#.png"
+            $user->foto_perfil = $request->selected_avatar; // p.ej. "avatar-10.png"
             $user->fyh_actualizacion = now();
             $user->save();
-
+            auth()->login($user->fresh());
             return back()->with('success', 'Avatar actualizado correctamente.');
         }
 
-        // Subir archivo nuevo
+        // Subir archivo
         if ($request->accion === 'subir' && $request->hasFile('foto')) {
             $file = $request->file('foto');
 
-            // carpeta pública: public/uploads/perfiles
             $dir = public_path('uploads/perfiles');
             if (!File::exists($dir)) {
                 File::makeDirectory($dir, 0755, true);
             }
 
-            // borra anterior si era archivo subido (no avatar)
+            // borrar anterior si era archivo subido (no avatar)
             if ($user->foto_perfil && !Str::startsWith($user->foto_perfil, 'avatar-')) {
-                $old = public_path('uploads/perfiles/'.$user->foto_perfil);
-                if (File::exists($old)) @File::delete($old);
+                @File::delete(public_path('uploads/perfiles/'.$user->foto_perfil));
             }
 
-            $ext = strtolower($file->getClientOriginalExtension());
+            $ext  = strtolower($file->getClientOriginalExtension());
             $name = 'u'.$user->id_usuario.'_'.time().'.'.$ext;
             $file->move($dir, $name);
 
             $user->foto_perfil = $name;
             $user->fyh_actualizacion = now();
             $user->save();
+            auth()->login($user->fresh());
 
             return back()->with('success', 'Foto subida correctamente.');
         }
