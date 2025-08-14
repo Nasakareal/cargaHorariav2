@@ -22,7 +22,7 @@ class LoginController extends Controller
 
     public function username()
     {
-        return 'correo_institucional';
+        return 'email';
     }
 
     protected function credentials(Request $request)

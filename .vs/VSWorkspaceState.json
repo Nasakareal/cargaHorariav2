@@ -4,12 +4,10 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Config",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\configuracion",
-    "\\resources\\views\\configuracion\\horarios_pasados"
+    "\\app\\Http\\Controllers\\Auth",
+    "\\app\\Providers",
+    "\\config"
   ],
-  "SelectedNode": "\\resources\\views\\configuracion\\horarios_pasados\\show.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Auth\\LoginController.php",
   "PreviewInSolutionExplorer": false
 }
