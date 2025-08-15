@@ -3,7 +3,12 @@
 @section('title', 'Paquete '.$fecha)
 
 @section('content_header')
-  <h1 class="text-center w-100">Paquete — {{ $fecha }} @if($quarterName) <small class="text-muted">({{ $quarterName }})</small>@endif</h1>
+  <h1 class="text-center w-100">
+    Paquete — {{ $fecha }}
+    @if($quarterName)
+      <small class="text-muted">({{ $quarterName }})</small>
+    @endif
+  </h1>
 @endsection
 
 @section('content')
@@ -14,6 +19,12 @@
       <h3 class="card-title">Filtrar horarios archivados</h3>
     </div>
     <div class="card-body">
+      @if(($grupos->isEmpty() ?? false) && ($profes->isEmpty() ?? false))
+        <div class="alert alert-info mb-3">
+          Catálogos actuales vacíos. Puedes ver el paquete completo sin filtrar porque los nombres vienen congelados en el historial.
+        </div>
+      @endif
+
       <form method="GET" action="{{ route('configuracion.horarios-pasados.show', $fecha) }}">
         <div class="row g-3">
           <div class="col-md-6">
@@ -49,7 +60,7 @@
   </div>
 
   {{-- Resultados --}}
-  @if(!empty($horas) && !empty($dias))
+  @if(isset($horas, $dias) && count($horas) > 0 && count($dias) > 0)
     <div class="card card-outline card-info">
       <div class="card-header">
         <h3 class="card-title">Detalle del horario</h3>
@@ -60,7 +71,9 @@
             <thead>
               <tr>
                 <th>Hora/Día</th>
-                @foreach($dias as $d) <th>{{ $d }}</th> @endforeach
+                @foreach($dias as $d)
+                  <th>{{ $d }}</th>
+                @endforeach
               </tr>
             </thead>
             <tbody>
@@ -85,7 +98,7 @@
 
 @section('js')
 <script>
-  // Si eliges grupo, limpia profesor, y viceversa (como en tu PHP)
+  // Si eliges grupo, limpia profesor, y viceversa
   document.getElementById('group_id')?.addEventListener('change', function(){
     if (this.value) document.getElementById('teacher_id').value = '';
   });

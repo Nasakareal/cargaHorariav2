@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class ScheduleAssignment extends Model
 {
     protected $table = 'schedule_assignments';
     protected $primaryKey = 'assignment_id';
 
-    // Activar timestamps personalizados
+    // Timestamps personalizados
     public $timestamps = true;
     const CREATED_AT = 'fyh_creacion';
     const UPDATED_AT = 'fyh_actualizacion';
@@ -21,11 +22,11 @@ class ScheduleAssignment extends Model
         'group_id',
         'classroom_id',
         'lab_id',
-        'start_time',
-        'end_time',
+        'start_time',     // TIME
+        'end_time',       // TIME
         'schedule_day',
         'estado',
-        'tipo_espacio',
+        'tipo_espacio',   // 'Laboratorio'|'Aula'
         'fyh_creacion',
         'fyh_actualizacion',
     ];
@@ -37,8 +38,6 @@ class ScheduleAssignment extends Model
         'group_id'          => 'integer',
         'classroom_id'      => 'integer',
         'lab_id'            => 'integer',
-        'start_time'        => 'datetime:H:i',
-        'end_time'          => 'datetime:H:i',
         'fyh_creacion'      => 'datetime',
         'fyh_actualizacion' => 'datetime',
         'estado'            => 'string',
@@ -46,7 +45,55 @@ class ScheduleAssignment extends Model
         'schedule_day'      => 'string',
     ];
 
-    // Relaciones
+    // ===== Normalización de TIME a H:i:s =====
+    protected function startTime(): Attribute
+    {
+        return Attribute::make(
+            set: fn ($v) => self::toHms($v),
+        );
+    }
+
+    protected function endTime(): Attribute
+    {
+        return Attribute::make(
+            set: fn ($v) => self::toHms($v),
+        );
+    }
+
+    // ===== Normaliza día =====
+    protected function scheduleDay(): Attribute
+    {
+        return Attribute::make(
+            set: fn ($v) => self::canonicalDay($v),
+        );
+    }
+
+    public static function toHms($time): ?string
+    {
+        if ($time === null || $time === '') return null;
+        if (preg_match('/^\d{2}:\d{2}$/', $time)) return $time . ':00';
+        return $time;
+    }
+
+    public static function canonicalDay(?string $day): ?string
+    {
+        if ($day === null) return null;
+        $k = mb_strtolower(trim($day), 'UTF-8');
+        $map = [
+            'lunes' => 'Lunes',
+            'martes' => 'Martes',
+            'miercoles' => 'Miércoles',
+            'miércoles' => 'Miércoles',
+            'jueves' => 'Jueves',
+            'viernes' => 'Viernes',
+            'sabado' => 'Sábado',
+            'sábado' => 'Sábado',
+            'domingo' => 'Domingo',
+        ];
+        return $map[$k] ?? $day;
+    }
+
+    // ===== Relaciones =====
     public function schedule()
     {
         return $this->belongsTo(Schedule::class, 'schedule_id', 'schedule_id');

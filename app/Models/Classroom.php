@@ -9,7 +9,6 @@ class Classroom extends Model
     protected $table = 'classrooms';
     protected $primaryKey = 'classroom_id';
 
-    // Activar timestamps usando tus columnas personalizadas
     public $timestamps = true;
     const CREATED_AT = 'fyh_creacion';
     const UPDATED_AT = 'fyh_actualizacion';
@@ -25,9 +24,19 @@ class Classroom extends Model
     ];
 
     protected $casts = [
-        'capacity'         => 'integer',
-        'fyh_creacion'     => 'datetime',
-        'fyh_actualizacion'=> 'datetime',
-        'estado'           => 'string',
+        'capacity'          => 'integer',
+        'fyh_creacion'      => 'datetime',
+        'fyh_actualizacion' => 'datetime',
+        'estado'            => 'string',
     ];
+
+    // ===== Relaciones
+    public function groups()
+    { return $this->hasMany(Grupo::class, 'classroom_assigned', 'classroom_id'); }
+
+    public function scheduleAssignments()
+    { return $this->hasMany(ScheduleAssignment::class, 'classroom_id', 'classroom_id'); }
+
+    public function manualScheduleAssignments()
+    { return $this->hasMany(ManualScheduleAssignment::class, 'classroom_id', 'classroom_id'); }
 }

@@ -8,7 +8,6 @@ class Teacher extends Model
 {
     protected $table = 'teachers';
     protected $primaryKey = 'teacher_id';
-
     public $timestamps = false;
 
     protected $fillable = [
@@ -26,15 +25,21 @@ class Teacher extends Model
     ];
 
     protected $casts = [
-        'hours'                      => 'integer',
-        'specialization_program_id'  => 'integer',
-        'program_id'                 => 'integer',
+        'hours'                     => 'integer',
+        'specialization_program_id' => 'integer',
+        'program_id'                => 'integer',
     ];
 
-    // Relación con materias (subjects)
+    // ===== Relaciones
+    public function scheduleAssignments()
+    { return $this->hasMany(ScheduleAssignment::class, 'teacher_id', 'teacher_id'); }
+
+    public function manualScheduleAssignments()
+    { return $this->hasMany(ManualScheduleAssignment::class, 'teacher_id', 'teacher_id'); }
+
     public function materias()
     {
-        // Pivot sugerido: subject_teacher (subject_id, teacher_id)
-        return $this->belongsToMany(Subject::class, 'subject_teacher', 'teacher_id', 'subject_id');
+        return $this->belongsToMany(Subject::class, 'teacher_subjects', 'teacher_id', 'subject_id')
+                    ->withPivot('group_id');
     }
 }

@@ -1,22 +1,28 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use App\Models\Subject;
 use App\Models\ActividadGeneral;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Database\QueryException;
 use Illuminate\Validation\Rule;
 
-class SubjectController extends Controller
+class SubjectApiController extends Controller
 {
-    # ===================== INDEX =====================
-    public function index()
+    // ===================== INDEX (GET /api/v1/materias) =====================
+    public function index(Request $request)
     {
-        // Subqueries: un solo programa y un solo cuatrimestre por materia (si vienen por la puente)
+        $q          = trim((string) $request->query('q', ''));
+        $programId  = $request->query('programa_id');
+        $termId     = $request->query('term_id');
+        $estado     = $request->query('estado'); // ACTIVO/INACTIVO opcional
+        $perPage    = (int) ($request->query('per_page', 15));
+
+        // Subqueries para traer un programa/term "fallback" desde la tabla puente (si aplica)
         $progSub = DB::table('program_term_subjects')
             ->select('subject_id', DB::raw('MIN(program_id) AS program_id'))
             ->groupBy('subject_id');
@@ -25,62 +31,99 @@ class SubjectController extends Controller
             ->select('subject_id', DB::raw('MIN(term_id) AS term_id'))
             ->groupBy('subject_id');
 
-        $materias = DB::table('subjects as s')
-            // Preferimos el program_id directo; si no existe, usamos el de la puente
+        $rows = DB::table('subjects as s')
             ->leftJoinSub($progSub, 'pp', 'pp.subject_id', '=', 's.subject_id')
             ->leftJoin('programs as p_dir', 'p_dir.program_id', '=', 's.program_id')
             ->leftJoin('programs as p_puente', function ($j) {
                 $j->on('p_puente.program_id', '=', 'pp.program_id');
             })
-
-            // Igual para term_id: directo y luego puente
             ->leftJoinSub($termSub, 'tt', 'tt.subject_id', '=', 's.subject_id')
             ->leftJoin('terms as t_dir', 't_dir.term_id', '=', 's.term_id')
             ->leftJoin('terms as t_puente', function ($j) {
                 $j->on('t_puente.term_id', '=', 'tt.term_id');
             })
-
+            ->when($q !== '', function ($qry) use ($q) {
+                $qry->where('s.subject_name', 'like', "%{$q}%");
+            })
+            ->when($programId, function ($qry) use ($programId) {
+                $qry->where(function ($w) use ($programId) {
+                    $w->where('s.program_id', $programId)
+                      ->orWhere('pp.program_id', $programId);
+                });
+            })
+            ->when($termId, function ($qry) use ($termId) {
+                $qry->where(function ($w) use ($termId) {
+                    $w->where('s.term_id', $termId)
+                      ->orWhere('tt.term_id', $termId);
+                });
+            })
+            ->when($estado, fn($qry) => $qry->where('s.estado', $estado))
             ->select([
                 's.subject_id',
                 's.subject_name',
                 's.weekly_hours',
                 's.max_consecutive_class_hours',
                 's.unidades',
+                's.program_id',
+                's.term_id',
+                's.estado',
                 's.fyh_creacion',
-
-                // Si hay programa directo úsalo; si no, el de la puente; si tampoco, NULL
-                DB::raw('COALESCE(p_dir.program_name, p_puente.program_name) AS programas'),
-
-                // Igual para cuatrimestre
-                DB::raw('COALESCE(t_dir.term_name, t_puente.term_name) AS cuatrimestres'),
+                DB::raw('COALESCE(p_dir.program_name, p_puente.program_name) AS programa_nombre'),
+                DB::raw('COALESCE(t_dir.term_name, t_puente.term_name) AS term_nombre'),
             ])
             ->orderBy('s.subject_name')
-            ->get();
+            ->paginate($perPage)
+            ->appends($request->query());
 
-        return view('materias.index', compact('materias'));
+        return response()->json([
+            'data' => $rows->items(),
+            'meta' => [
+                'current_page' => $rows->currentPage(),
+                'per_page'     => $rows->perPage(),
+                'total'        => $rows->total(),
+                'last_page'    => $rows->lastPage(),
+            ],
+        ]);
     }
 
-
-    # ===================== CREATE ====================
-    public function create()
+    // ===================== SHOW (GET /api/v1/materias/{id}) =====================
+    public function show($id)
     {
-        // catálogos para armar las relaciones programa–cuatrimestre
-        $programas = DB::table('programs')->orderBy('program_name')->get(['program_id','program_name']);
-        $terms     = DB::table('terms')->orderBy('term_id')->get(['term_id','term_name']);
+        $materia = DB::table('subjects as s')
+            ->leftJoin('programs as p', 'p.program_id', '=', 's.program_id')
+            ->leftJoin('terms as t',    't.term_id',    '=', 's.term_id')
+            ->where('s.subject_id', (int)$id)
+            ->select('s.*', 'p.program_name', 't.term_name')
+            ->first();
 
-        return view('materias.create', compact('programas','terms'));
+        if (!$materia) {
+            return response()->json(['message' => 'Materia no encontrada'], 404);
+        }
+
+        // Relaciones N–N desde program_term_subjects (solo a modo informativo)
+        $rel = DB::table('program_term_subjects as pts')
+            ->join('programs as p', 'p.program_id', '=', 'pts.program_id')
+            ->join('terms as t',    't.term_id',    '=', 'pts.term_id')
+            ->where('pts.subject_id', (int)$id)
+            ->orderBy('p.program_name')
+            ->orderBy('t.term_id')
+            ->get(['p.program_name','t.term_name']);
+
+        return response()->json([
+            'data' => $materia,
+            'relaciones' => $rel,
+        ]);
     }
 
-    # ===================== STORE =====================
+    // ===================== STORE (POST /api/v1/materias) =====================
     public function store(Request $request)
     {
         $data = $request->validate([
             'subject_name' => [
                 'required', 'string', 'max:255',
-                // Único por (programa, cuatrimestre)
                 Rule::unique('subjects', 'subject_name')
                     ->where(fn($q) => $q->where('program_id', $request->program_id)
-                                       ->where('term_id',    $request->term_id)),
+                                        ->where('term_id',    $request->term_id)),
             ],
             'weekly_hours'                => 'required|integer|min:1',
             'max_consecutive_class_hours' => 'required|integer|min:1',
@@ -88,16 +131,8 @@ class SubjectController extends Controller
             'term_id'                     => 'required|integer|exists:terms,term_id',
             'unidades'                    => 'required|integer|min:1',
             'estado'                      => 'nullable|in:ACTIVO,INACTIVO',
-        ], [
-            'subject_name.required' => 'El nombre de la materia es obligatorio.',
-            'subject_name.unique'   => 'Ya existe una materia con ese nombre en el mismo programa y cuatrimestre.',
-            'weekly_hours.required' => 'Las horas semanales son obligatorias.',
-            'program_id.required'   => 'El programa es obligatorio.',
-            'term_id.required'      => 'El cuatrimestre es obligatorio.',
-            'unidades.required'     => 'Las unidades son obligatorias.',
         ]);
 
-        // Normaliza espacios en el nombre
         $data['subject_name'] = preg_replace('/\s+/', ' ', trim($data['subject_name']));
         $data['estado']       = $data['estado'] ?? 'ACTIVO';
 
@@ -114,75 +149,34 @@ class SubjectController extends Controller
                 'estado'                      => $data['estado'],
             ]);
 
-            ActividadGeneral::registrar('CREAR', 'subjects', $materia->subject_id, "Creó materia {$materia->subject_name}");
+            // Bitácora (si existe el modelo)
+            try {
+                ActividadGeneral::registrar('CREAR', 'subjects', $materia->subject_id, "Creó materia {$materia->subject_name}");
+            } catch (\Throwable $e) {
+                Log::warning('ActividadGeneral no disponible (CREAR subjects): '.$e->getMessage());
+            }
 
             DB::commit();
-            return redirect()->route('materias.index')->with('success', 'Materia creada correctamente.');
-        } catch (\Illuminate\Database\QueryException $e) {
+            return response()->json(['data' => $materia], 201);
+        } catch (QueryException $e) {
             DB::rollBack();
             Log::error('Error BD al crear materia', ['code' => $e->getCode(), 'msg' => $e->getMessage()]);
-            return back()->withInput()->with('error', 'Error de base de datos al crear la materia.');
+            return response()->json(['message' => 'Error de base de datos al crear la materia'], 500);
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('Error inesperado al crear materia', ['msg' => $e->getMessage()]);
-            return back()->withInput()->with('error', 'Ocurrió un error inesperado al crear la materia.');
+            return response()->json(['message' => 'Error inesperado al crear la materia'], 500);
         }
     }
 
-    # ====================== SHOW ======================
-public function show($id)
-{
-    $materia = DB::table('subjects as s')
-        ->leftJoin('programs as p', 'p.program_id', '=', 's.program_id')   // por si guardas principal
-        ->leftJoin('terms as t',    't.term_id',    '=', 's.term_id')
-        ->where('s.subject_id', (int)$id)
-        ->select('s.*','p.program_name','t.term_name')
-        ->first();
-
-    if (!$materia) {
-        return redirect()->route('materias.index')->with('error','La materia no existe.');
-    }
-
-    // Relaciones N–N desde program_term_subjects
-    $rel = DB::table('program_term_subjects as pts')
-        ->join('programs as p', 'p.program_id', '=', 'pts.program_id')
-        ->join('terms as t',    't.term_id',    '=', 'pts.term_id')
-        ->where('pts.subject_id', (int)$id)
-        ->orderBy('p.program_name')
-        ->orderBy('t.term_id')
-        ->get(['p.program_name','t.term_name']);
-
-    return view('materias.show', compact('materia','rel'));
-}
-
-    # ====================== EDIT ======================
-    public function edit($id)
-    {
-        $materia = Subject::where('subject_id', (int)$id)->first();
-        if (!$materia) {
-            return redirect()->route('materias.index')->with('error','La materia no existe.');
-        }
-
-        $programas = DB::table('programs')
-            ->orderBy('program_name')
-            ->get(['program_id','program_name']);
-
-        $terms = DB::table('terms')
-            ->orderBy('term_id')
-            ->get(['term_id','term_name']);
-
-        return view('materias.edit', compact('materia','programas','terms'));
-    }
-
-    # ===================== UPDATE =====================
+    // ===================== UPDATE (PUT/PATCH /api/v1/materias/{id}) =====================
     public function update(Request $request, $id)
     {
         $materia = Subject::where('subject_id', (int)$id)->first();
         if (!$materia) {
-            return redirect()->route('materias.index')->with('error', 'La materia no existe.');
+            return response()->json(['message' => 'La materia no existe'], 404);
         }
 
-        // Validación: único por (nombre, programa, cuatrimestre)
         $data = $request->validate([
             'subject_name' => [
                 'required', 'string', 'max:255',
@@ -197,16 +191,8 @@ public function show($id)
             'term_id'                     => 'required|integer|exists:terms,term_id',
             'unidades'                    => 'required|integer|min:1',
             'estado'                      => 'required|in:ACTIVO,INACTIVO',
-        ], [
-            'subject_name.required' => 'El nombre de la materia es obligatorio.',
-            'subject_name.unique'   => 'Ya existe una materia con ese nombre en el mismo programa y cuatrimestre.',
-            'weekly_hours.required' => 'Las horas semanales son obligatorias.',
-            'program_id.required'   => 'El programa es obligatorio.',
-            'term_id.required'      => 'El cuatrimestre es obligatorio.',
-            'unidades.required'     => 'Las unidades son obligatorias.',
         ]);
 
-        // Normaliza el nombre
         $data['subject_name'] = preg_replace('/\s+/', ' ', trim($data['subject_name']));
 
         try {
@@ -222,36 +208,31 @@ public function show($id)
                 'estado'                      => $data['estado'],
             ]);
 
-            ActividadGeneral::registrar(
-                'ACTUALIZAR',
-                'subjects',
-                $materia->subject_id,
-                "Actualizó materia {$materia->subject_name}"
-            );
+            try {
+                ActividadGeneral::registrar('ACTUALIZAR', 'subjects', $materia->subject_id, "Actualizó materia {$materia->subject_name}");
+            } catch (\Throwable $e) {
+                Log::warning('ActividadGeneral no disponible (ACTUALIZAR subjects): '.$e->getMessage());
+            }
 
             DB::commit();
-            return redirect()->route('materias.index')->with('success', 'Materia actualizada correctamente.');
-        } catch (\Illuminate\Database\QueryException $e) {
+            return response()->json(['data' => $materia]);
+        } catch (QueryException $e) {
             DB::rollBack();
             Log::error('Error BD al actualizar materia', ['code'=>$e->getCode(),'msg'=>$e->getMessage()]);
-            return back()->withInput()->with('error', 'Error de base de datos al actualizar la materia.');
+            return response()->json(['message' => 'Error de base de datos al actualizar la materia'], 500);
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('Error inesperado al actualizar materia', ['msg'=>$e->getMessage()]);
-            return back()->withInput()->with('error', 'Ocurrió un error inesperado al actualizar la materia.');
+            return response()->json(['message' => 'Error inesperado al actualizar la materia'], 500);
         }
     }
 
-    # ===================== DESTROY ====================
+    // ===================== DESTROY (DELETE /api/v1/materias/{id}) =====================
     public function destroy($id)
     {
         $materia = Subject::where('subject_id', (int)$id)->first();
         if (!$materia) {
-            return redirect()->route('materias.index')->with('error','La materia no existe.');
-        }
-
-        if (!Auth::user()->can('eliminar materias')) {
-            return redirect()->route('materias.index')->with('error','No tienes permiso para eliminar materias.');
+            return response()->json(['message' => 'La materia no existe'], 404);
         }
 
         // No permitir borrar si está en uso
@@ -260,7 +241,7 @@ public function show($id)
               || DB::table('manual_schedule_assignments')->where('subject_id', $materia->subject_id)->exists();
 
         if ($enUso) {
-            return redirect()->route('materias.index')->with('error','No se puede eliminar una materia que ya está asignada.');
+            return response()->json(['message' => 'No se puede eliminar una materia que ya está asignada'], 409);
         }
 
         try {
@@ -269,49 +250,22 @@ public function show($id)
             DB::table('program_term_subjects')->where('subject_id', $materia->subject_id)->delete();
             $materia->delete();
 
-            ActividadGeneral::registrar('ELIMINAR', 'subjects', $id, "Eliminó materia {$materia->subject_name}");
+            try {
+                ActividadGeneral::registrar('ELIMINAR', 'subjects', (int)$id, "Eliminó materia {$materia->subject_name}");
+            } catch (\Throwable $e) {
+                Log::warning('ActividadGeneral no disponible (ELIMINAR subjects): '.$e->getMessage());
+            }
 
             DB::commit();
-            return redirect()->route('materias.index')->with('success','Materia eliminada correctamente.');
+            return response()->json(['ok' => true, 'message' => 'Materia eliminada']);
         } catch (QueryException $e) {
             DB::rollBack();
             Log::error('Error BD al eliminar materia', ['code'=>$e->getCode(),'msg'=>$e->getMessage()]);
-            return redirect()->route('materias.index')->with('error','Error de base de datos al eliminar la materia.');
+            return response()->json(['message' => 'Error de base de datos al eliminar la materia'], 500);
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('Error inesperado al eliminar materia', ['msg'=>$e->getMessage()]);
-            return redirect()->route('materias.index')->with('error','Ocurrió un error inesperado al eliminar la materia.');
+            return response()->json(['message' => 'Error inesperado al eliminar la materia'], 500);
         }
-    }
-
-    # ------------------- Helpers -------------------
-    /**
-     * Acepta cualquiera de estas formas desde el formulario:
-     *  A) relaciones[] = ["<program_id>|<term_id>", ...]
-     *  B) program_id[] y term_id[] (misma longitud): se interpretan como pares (p[i], t[i]).
-     */
-    private function parsePairsFromRequest(Request $request): array
-    {
-        $pairs = [];
-
-        // A) relaciones = ["3|1","5|2",...]
-        if (is_array($request->relaciones) && count($request->relaciones)) {
-            foreach ($request->relaciones as $pair) {
-                [$p,$t] = array_pad(explode('|', (string)$pair, 2), 2, null);
-                if ($p && $t) $pairs[] = [(int)$p, (int)$t];
-            }
-            return $pairs;
-        }
-
-        // B) program_id[] + term_id[] con misma longitud
-        $prog = (array) $request->program_id;
-        $term = (array) $request->term_id;
-        if (count($prog) === count($term)) {
-            for ($i=0; $i<count($prog); $i++) {
-                if ($prog[$i] && $term[$i]) $pairs[] = [(int)$prog[$i], (int)$term[$i]];
-            }
-        }
-
-        return $pairs;
     }
 }

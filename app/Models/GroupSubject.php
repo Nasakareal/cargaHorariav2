@@ -24,18 +24,15 @@ class GroupSubject extends Model
     protected $casts = [
         'group_id'          => 'integer',
         'subject_id'        => 'integer',
+        'estado'            => 'string',
         'fyh_creacion'      => 'datetime',
         'fyh_actualizacion' => 'datetime',
-        'estado'            => 'string',
     ];
 
+    // ===== Relaciones (ojo con los owner keys correctos)
     public function group()
-    {
-        return $this->belongsTo(Group::class, 'group_id', 'id_grupo');
-    }
+    { return $this->belongsTo(Grupo::class, 'group_id', 'group_id'); }
 
     public function subject()
-    {
-        return $this->belongsTo(Subject::class, 'subject_id', 'id_materia');
-    }
+    { return $this->belongsTo(Subject::class, 'subject_id', 'subject_id'); }
 }

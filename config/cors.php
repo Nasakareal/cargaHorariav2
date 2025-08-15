@@ -1,34 +1,32 @@
 <?php
 
 return [
-
-    /*
-    |--------------------------------------------------------------------------
-    | Cross-Origin Resource Sharing (CORS) Configuration
-    |--------------------------------------------------------------------------
-    |
-    | Here you may configure your settings for cross-origin resource sharing
-    | or "CORS". This determines what cross-origin operations may execute
-    | in web browsers. You are free to adjust these settings as needed.
-    |
-    | To learn more: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
-    |
-    */
-
+    // Aplica CORS solo al API
     'paths' => ['api/*', 'sanctum/csrf-cookie'],
 
-    'allowed_methods' => ['*'],
+    // Métodos permitidos
+    'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 
-    'allowed_origins' => ['*'],
+    // SOLO tus dominios (NO se pone la ruta /cargaHoraria aquí, solo esquema+host)
+    'allowed_origins' => [
+        'https://www.utmorelia.com',
+        'https://utmorelia.com',
+    ],
 
-    'allowed_origins_patterns' => [],
+    // Si tuvieras subdominios, podrías usar patrones (si no, déjalo vacío)
+    'allowed_origins_patterns' => [
+        // '#^https://.*\.utmorelia\.com$#',
+    ],
 
+    // Encabezados permitidos
     'allowed_headers' => ['*'],
 
-    'exposed_headers' => [],
+    // Headers expuestos al cliente (útil para descargas)
+    'exposed_headers' => ['Content-Disposition'],
 
-    'max_age' => 0,
+    // Cache del preflight
+    'max_age' => 3600,
 
+    // Tokens personales (Bearer) ⇒ false. Solo pon true si usaras cookies/sesión SPA.
     'supports_credentials' => false,
-
 ];

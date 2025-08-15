@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use App\Models\ActividadGeneral;
 
 class HorarioPasadoController extends Controller
@@ -25,12 +26,14 @@ class HorarioPasadoController extends Controller
     /** Vista de confirmación para archivar todo lo actual */
     public function create()
     {
-        // Podrías mostrar un resumen: cuántos registros actuales hay en schedule_assignments
         $actuales = DB::table('schedule_assignments')->count();
         return view('configuracion.horarios_pasados.create', compact('actuales'));
     }
 
-    /** Archiva: copia schedule_assignments -> schedule_history y limpia schedule_assignments */
+    /**
+     * Archiva: copia schedule_assignments -> schedule_history y limpia schedule_assignments.
+     * Inserta snapshots (teacher_name, group_name, subject_name) SOLO si las columnas existen.
+     */
     public function store(Request $request)
     {
         $this->authorize('crear horarios pasados');
@@ -42,18 +45,59 @@ class HorarioPasadoController extends Controller
             'confirm.in' => 'Debes confirmar la acción.',
         ]);
 
+        // Detecta si existen columnas snapshot en schedule_history
+        $hasTeacherName = Schema::hasColumn('schedule_history', 'teacher_name');
+        $hasGroupName   = Schema::hasColumn('schedule_history', 'group_name');
+        $hasSubjectName = Schema::hasColumn('schedule_history', 'subject_name');
+
         try {
             DB::beginTransaction();
 
-            // Inserta TODO el horario actual en el historial
-            // Nota: usamos los nombres de columnas tal como tu PHP puro.
-            DB::statement("
-                INSERT INTO schedule_history
-                    (schedule_id, subject_id, teacher_id, group_id, classroom_id, lab_id, start_time, end_time, schedule_day, estado, fyh_creacion, fyh_actualizacion, tipo_espacio, quarter_name_en, fecha_registro)
+            // Construcción de columnas destino
+            $baseCols = [
+                'schedule_id','subject_id','teacher_id','group_id',
+                'classroom_id','lab_id','start_time','end_time',
+                'schedule_day','estado','fyh_creacion','fyh_actualizacion',
+                'tipo_espacio','quarter_name_en','fecha_registro',
+            ];
+
+            $destCols = $baseCols;
+            if ($hasTeacherName) $destCols[] = 'teacher_name';
+            if ($hasGroupName)   $destCols[] = 'group_name';
+            if ($hasSubjectName) $destCols[] = 'subject_name';
+
+            // SELECT base
+            $selectBase = "
+                sa.schedule_id, sa.subject_id, sa.teacher_id, sa.group_id,
+                sa.classroom_id, sa.lab_id, sa.start_time, sa.end_time,
+                sa.schedule_day, sa.estado, sa.fyh_creacion, sa.fyh_actualizacion,
+                sa.tipo_espacio, ? AS quarter_name_en, NOW() AS fecha_registro
+            ";
+
+            // SELECT snapshots (si existen columnas destino)
+            $selectSnap = '';
+            if ($hasTeacherName || $hasGroupName || $hasSubjectName) {
+                // LEFT JOIN a tablas actuales para “congelar” nombres
+                $selectSnap =
+                    ($hasTeacherName ? ", t.teacher_name" : "") .
+                    ($hasGroupName   ? ", g.group_name"   : "") .
+                    ($hasSubjectName ? ", s.subject_name" : "");
+            }
+
+            $sql = "
+                INSERT INTO schedule_history (" . implode(',', $destCols) . ")
                 SELECT
-                    schedule_id, subject_id, teacher_id, group_id, classroom_id, lab_id, start_time, end_time, schedule_day, estado, fyh_creacion, fyh_actualizacion, tipo_espacio, ?, NOW()
-                FROM schedule_assignments
-            ", [$request->input('quarter_name_en')]);
+                    {$selectBase}
+                    {$selectSnap}
+                FROM schedule_assignments sa
+                " . (($hasTeacherName || $hasGroupName || $hasSubjectName) ? "
+                    LEFT JOIN teachers t ON t.teacher_id = sa.teacher_id
+                    LEFT JOIN `groups` g ON g.group_id   = sa.group_id
+                    LEFT JOIN subjects s ON s.subject_id = sa.subject_id
+                " : "") . "
+            ";
+
+            DB::statement($sql, [$request->input('quarter_name_en')]);
 
             // Limpia los horarios actuales para nuevo periodo
             DB::table('schedule_assignments')->delete();
@@ -61,6 +105,7 @@ class HorarioPasadoController extends Controller
             ActividadGeneral::registrar('ARCHIVAR_HORARIO', 'schedule_history', null, 'Archivó horarios actuales y limpió tabla de trabajo.');
 
             DB::commit();
+
             return redirect()
                 ->route('configuracion.horarios-pasados.index')
                 ->with('success', 'Horarios archivados correctamente y tabla actual limpiada.');
@@ -85,7 +130,13 @@ class HorarioPasadoController extends Controller
         $groupId   = (int) $request->query('group_id', 0);
         $teacherId = (int) $request->query('teacher_id', 0);
 
+        // ¿Existen columnas snapshot?
+        $hasTeacherName = Schema::hasColumn('schedule_history', 'teacher_name');
+        $hasSubjectName = Schema::hasColumn('schedule_history', 'subject_name');
+
         $q = DB::table('schedule_history as sh')
+            // Mantén LEFT JOINs para cuando SÍ existan maestros/materias actuales,
+            // pero usa COALESCE para privilegiar el snapshot.
             ->leftJoin('subjects as s', 's.subject_id', '=', 'sh.subject_id')
             ->leftJoin('teachers as t', 't.teacher_id', '=', 'sh.teacher_id')
             ->whereRaw('DATE(sh.fecha_registro) = ?', [$fecha]);
@@ -96,25 +147,31 @@ class HorarioPasadoController extends Controller
             $q->where('sh.teacher_id', $teacherId);
         }
 
+        // Selección preferente de snapshots si existen
+        $selectSubject = $hasSubjectName ? DB::raw('COALESCE(sh.subject_name, s.subject_name) as subject_name')
+                                         : DB::raw('s.subject_name');
+        $selectTeacher = $hasTeacherName ? DB::raw('COALESCE(sh.teacher_name, t.teacher_name) as teacher_name')
+                                         : DB::raw('t.teacher_name');
+
         $registros = $q
             ->orderByRaw("FIELD(sh.schedule_day,'Lunes','Martes','Miércoles','Miercoles','Jueves','Viernes','Sábado','Sabado','Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday')")
             ->orderBy('sh.start_time')
             ->get([
                 'sh.schedule_day','sh.start_time','sh.end_time',
-                's.subject_name','t.teacher_name'
+                $selectSubject, $selectTeacher
             ]);
 
         // ===== Normalización de días y armado de tabla =====
         $horas = [];
-        $diasCanon = [];   // días ya normalizados (español)
+        $diasCanon = [];
         $filas = [];
 
         foreach ($registros as $r) {
             $hora = date('H:i', strtotime((string)$r->start_time));
             $dia  = $this->canonizarDia((string)$r->schedule_day);
 
-            if (!in_array($hora, $horas, true))      $horas[] = $hora;
-            if (!in_array($dia,  $diasCanon, true))  $diasCanon[] = $dia;
+            if (!in_array($hora, $horas, true))     $horas[] = $hora;
+            if (!in_array($dia,  $diasCanon, true)) $diasCanon[] = $dia;
 
             $filas[] = [
                 'hora' => $hora,
@@ -125,10 +182,8 @@ class HorarioPasadoController extends Controller
 
         sort($horas);
         $ordenDias = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
-        // Mantén sólo los días presentes, respetando el orden deseado
         $diasCanon = array_values(array_intersect($ordenDias, $diasCanon));
 
-        // Matriz vacía
         $tabla = [];
         foreach ($horas as $h) {
             foreach ($diasCanon as $d) {
@@ -136,7 +191,6 @@ class HorarioPasadoController extends Controller
             }
         }
 
-        // Rellenar matriz
         foreach ($filas as $f) {
             if (!isset($tabla[$f['hora']][$f['dia']])) continue;
             $tabla[$f['hora']][$f['dia']] = $tabla[$f['hora']][$f['dia']]
@@ -155,14 +209,13 @@ class HorarioPasadoController extends Controller
             'groupId'     => $groupId,
             'teacherId'   => $teacherId,
             'horas'       => $horas,
-            'dias'        => $diasCanon,   // <- ya normalizados
+            'dias'        => $diasCanon,
             'tabla'       => $tabla,
             'quarterName' => $cuatri,
         ]);
     }
 
-
-    /** Editar “nombre” (quarter_name_en) del paquete (por fecha) */
+    /** Editar nombre (quarter_name_en) del paquete (por fecha) */
     public function edit($fecha)
     {
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$fecha)) {
@@ -195,11 +248,16 @@ class HorarioPasadoController extends Controller
             $af = DB::table('schedule_history')
                 ->whereDate('fecha_registro', $fecha)
                 ->update([
-                    'quarter_name_en' => $request->quarter_name_en,
+                    'quarter_name_en'   => $request->quarter_name_en,
                     'fyh_actualizacion' => now(),
                 ]);
 
-            ActividadGeneral::registrar('RENOMBRAR_PAQUETE', 'schedule_history', null, "Renombró paquete {$fecha} a '{$request->quarter_name_en}' ({$af} filas).");
+            ActividadGeneral::registrar(
+                'RENOMBRAR_PAQUETE',
+                'schedule_history',
+                null,
+                "Renombró paquete {$fecha} a '{$request->quarter_name_en}' ({$af} filas)."
+            );
 
             return redirect()
                 ->route('configuracion.horarios-pasados.index')
@@ -218,7 +276,12 @@ class HorarioPasadoController extends Controller
         try {
             $af = DB::table('schedule_history')->whereDate('fecha_registro', $fecha)->delete();
 
-            ActividadGeneral::registrar('ELIMINAR_PAQUETE', 'schedule_history', null, "Eliminó paquete {$fecha} ({$af} filas).");
+            ActividadGeneral::registrar(
+                'ELIMINAR_PAQUETE',
+                'schedule_history',
+                null,
+                "Eliminó paquete {$fecha} ({$af} filas)."
+            );
 
             return redirect()->route('configuracion.horarios-pasados.index')
                 ->with('success', 'Paquete eliminado.');
@@ -249,7 +312,6 @@ class HorarioPasadoController extends Controller
             'saturday' => 'Sábado',
             'sunday' => 'Domingo',
         ];
-        return $map[$k] ?? 'Lunes'; // fallback razonable
+        return $map[$k] ?? 'Lunes';
     }
-
 }
