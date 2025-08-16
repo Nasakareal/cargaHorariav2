@@ -3,24 +3,8 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\cargaHorariav2\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Horarios\\HorarioGrupoController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\Horarios\\HorarioGrupoController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Api\\Horarios\\HorarioGrupoApiController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\Api\\Horarios\\HorarioGrupoApiController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\configuracion\\registro_actividad\\index.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\configuracion\\registro_actividad\\index.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\routes\\api.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:routes\\api.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\horarios\\grupos\\show.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\horarios\\grupos\\show.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Api\\Horarios\\HorarioProfesorApiController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\Api\\Horarios\\HorarioProfesorApiController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -35,64 +19,15 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "HorarioGrupoController.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Horarios\\HorarioGrupoController.php",
-              "RelativeDocumentMoniker": "app\\Http\\Controllers\\Horarios\\HorarioGrupoController.php",
-              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Horarios\\HorarioGrupoController.php",
-              "RelativeToolTip": "app\\Http\\Controllers\\Horarios\\HorarioGrupoController.php",
-              "ViewState": "AgIAAA8AAAAAAAAAAAAAAH4AAAAAAAAAAAAAAA==",
+              "Title": "HorarioProfesorApiController.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Api\\Horarios\\HorarioProfesorApiController.php",
+              "RelativeDocumentMoniker": "app\\Http\\Controllers\\Api\\Horarios\\HorarioProfesorApiController.php",
+              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Api\\Horarios\\HorarioProfesorApiController.php",
+              "RelativeToolTip": "app\\Http\\Controllers\\Api\\Horarios\\HorarioProfesorApiController.php",
+              "ViewState": "AgIAAD4AAAAAAAAAAAAkwHIAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-08-16T05:05:15.24Z",
+              "WhenOpened": "2025-08-16T06:04:57.397Z",
               "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "HorarioGrupoApiController.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Api\\Horarios\\HorarioGrupoApiController.php",
-              "RelativeDocumentMoniker": "app\\Http\\Controllers\\Api\\Horarios\\HorarioGrupoApiController.php",
-              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Api\\Horarios\\HorarioGrupoApiController.php",
-              "RelativeToolTip": "app\\Http\\Controllers\\Api\\Horarios\\HorarioGrupoApiController.php",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABAAAABJAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-08-16T04:09:55.479Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "index.blade.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\configuracion\\registro_actividad\\index.blade.php",
-              "RelativeDocumentMoniker": "resources\\views\\configuracion\\registro_actividad\\index.blade.php",
-              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\configuracion\\registro_actividad\\index.blade.php",
-              "RelativeToolTip": "resources\\views\\configuracion\\registro_actividad\\index.blade.php",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAC8AAAAVAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-08-16T04:00:51.647Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "show.blade.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\horarios\\grupos\\show.blade.php",
-              "RelativeDocumentMoniker": "resources\\views\\horarios\\grupos\\show.blade.php",
-              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\horarios\\grupos\\show.blade.php",
-              "RelativeToolTip": "resources\\views\\horarios\\grupos\\show.blade.php",
-              "ViewState": "AgIAAGAAAAAAAAAAAAAuwJwAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-08-16T01:06:59.339Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "api.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\routes\\api.php",
-              "RelativeDocumentMoniker": "routes\\api.php",
-              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\routes\\api.php",
-              "RelativeToolTip": "routes\\api.php",
-              "ViewState": "AgIAAJIAAAAAAAAAAAAuwMsAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-08-15T00:49:32.006Z"
             }
           ]
         }
