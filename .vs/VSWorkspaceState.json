@@ -4,14 +4,13 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Horarios",
+    "\\app\\Http\\Controllers\\Api",
+    "\\app\\Http\\Controllers\\Api\\Horarios",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\configuracion",
-    "\\resources\\views\\configuracion\\registro_actividad",
     "\\resources\\views\\horarios",
     "\\resources\\views\\horarios\\grupos"
   ],
-  "SelectedNode": "\\resources\\views\\configuracion\\registro_actividad\\index.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\Horarios\\HorarioGrupoApiController.php",
   "PreviewInSolutionExplorer": false
 }
