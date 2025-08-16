@@ -11,6 +11,6 @@
     "\\resources\\views\\horarios\\grupos",
     "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\DashboardApiController.php",
+  "SelectedNode": "\\routes\\api.php",
   "PreviewInSolutionExplorer": false
 }

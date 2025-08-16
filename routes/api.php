@@ -3,6 +3,9 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+// ================= DASHBOARD =================
+use App\Http\Controllers\Api\DashboardApiController;
+
 // ========= AUTH / PERFIL =========
 use App\Http\Controllers\Api\AuthApiController;
 use App\Http\Controllers\Api\PerfilApiController;
@@ -41,6 +44,12 @@ use App\Http\Controllers\Api\TeacherSubjectApiController;
 
 // ===================== STATUS =====================
 Route::get('/v1/status', fn () => response()->json(['ok' => true, 'version' => 'v1']));
+
+// ===================== DASHBOARD =====================
+Route::prefix('v1')->group(function () {
+    Route::get('/dashboard/resumen', [DashboardApiController::class, 'resumen']);
+    Route::get('/dashboard/grupos-faltantes', [DashboardApiController::class, 'gruposConFaltantes']);
+});
 
 // ===================== AUTENTICACIÓN =====================
 Route::prefix('v1')->group(function () {
