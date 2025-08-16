@@ -74,7 +74,7 @@ class UsuarioController extends Controller
                 'email'            => $request->email,
                 'password'         => Hash::make($request->password),
                 'area'             => $areasStr,
-                'estado'           => 'ACTIVO',
+                'estado'           => 'Activo',
                 'rol_id'           => $role->id,
                 'fyh_creacion'     => now(),
                 'fyh_actualizacion'=> null,

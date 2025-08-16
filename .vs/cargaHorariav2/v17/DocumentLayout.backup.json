@@ -3,12 +3,12 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\cargaHorariav2\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\configuracion\\horarios_pasados\\show.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\configuracion\\horarios_pasados\\show.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\routes\\api.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:routes\\api.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Config\\HorarioPasadoController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\Config\\HorarioPasadoController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Api\\ProfesorApiController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\Api\\ProfesorApiController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -23,27 +23,27 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "show.blade.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\configuracion\\horarios_pasados\\show.blade.php",
-              "RelativeDocumentMoniker": "resources\\views\\configuracion\\horarios_pasados\\show.blade.php",
-              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\configuracion\\horarios_pasados\\show.blade.php",
-              "RelativeToolTip": "resources\\views\\configuracion\\horarios_pasados\\show.blade.php",
-              "ViewState": "AgIAAE4AAAAAAAAAAAAAwG0AAAAAAAAAAAAAAA==",
+              "Title": "api.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\routes\\api.php",
+              "RelativeDocumentMoniker": "routes\\api.php",
+              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\routes\\api.php",
+              "RelativeToolTip": "routes\\api.php",
+              "ViewState": "AgIAACkAAAAAAAAAAAAwwFIAAAAwAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-08-14T20:30:51.883Z",
+              "WhenOpened": "2025-08-15T00:49:32.006Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "HorarioPasadoController.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Config\\HorarioPasadoController.php",
-              "RelativeDocumentMoniker": "app\\Http\\Controllers\\Config\\HorarioPasadoController.php",
-              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Config\\HorarioPasadoController.php",
-              "RelativeToolTip": "app\\Http\\Controllers\\Config\\HorarioPasadoController.php",
-              "ViewState": "AgIAAB4BAAAAAAAAAAAAwD0BAAAAAAAAAAAAAA==",
+              "Title": "ProfesorApiController.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Api\\ProfesorApiController.php",
+              "RelativeDocumentMoniker": "app\\Http\\Controllers\\Api\\ProfesorApiController.php",
+              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Api\\ProfesorApiController.php",
+              "RelativeToolTip": "app\\Http\\Controllers\\Api\\ProfesorApiController.php",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-08-14T20:26:48.456Z",
+              "WhenOpened": "2025-08-15T00:49:23.351Z",
               "EditorCaption": ""
             }
           ]

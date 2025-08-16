@@ -4,9 +4,13 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
-    "\\routes"
+    "\\app\\Http\\Controllers\\Config",
+    "\\app\\Http\\Controllers\\Horarios",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\horarios",
+    "\\resources\\views\\horarios\\grupos"
   ],
-  "SelectedNode": "\\routes\\api.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Config\\UsuarioController.php",
   "PreviewInSolutionExplorer": false
 }
