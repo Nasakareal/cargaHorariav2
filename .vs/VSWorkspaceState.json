@@ -9,8 +9,9 @@
     "\\resources",
     "\\resources\\views",
     "\\resources\\views\\horarios",
-    "\\resources\\views\\horarios\\grupos"
+    "\\resources\\views\\horarios\\grupos",
+    "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\Horarios\\HorarioGrupoApiController.php",
+  "SelectedNode": "\\routes\\api.php",
   "PreviewInSolutionExplorer": false
 }
