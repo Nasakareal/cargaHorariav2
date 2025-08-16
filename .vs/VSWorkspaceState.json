@@ -5,13 +5,12 @@
     "\\app\\Http",
     "\\app\\Http\\Controllers",
     "\\app\\Http\\Controllers\\Api",
-    "\\app\\Http\\Controllers\\Api\\Horarios",
     "\\resources",
     "\\resources\\views",
     "\\resources\\views\\horarios",
     "\\resources\\views\\horarios\\grupos",
     "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\Horarios\\HorarioProfesorApiController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\DashboardApiController.php",
   "PreviewInSolutionExplorer": false
 }
