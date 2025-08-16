@@ -98,8 +98,8 @@
                     @php
                       $estadoVal = old('estado', $usuario->estado);
                     @endphp
-                    <option value="ACTIVO"   {{ $estadoVal === 'ACTIVO' ? 'selected' : '' }}>ACTIVO</option>
-                    <option value="INACTIVO" {{ $estadoVal === 'INACTIVO' ? 'selected' : '' }}>INACTIVO</option>
+                    <option value="Activo"   {{ $estadoVal === 'Activo' ? 'selected' : '' }}>Activo</option>
+                    <option value="Inactivo" {{ $estadoVal === 'Inactivo' ? 'selected' : '' }}>Inactivo</option>
                   </select>
                 </div>
               </div>

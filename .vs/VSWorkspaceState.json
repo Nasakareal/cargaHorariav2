@@ -4,13 +4,14 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Config",
     "\\app\\Http\\Controllers\\Horarios",
     "\\resources",
     "\\resources\\views",
+    "\\resources\\views\\configuracion",
+    "\\resources\\views\\configuracion\\registro_actividad",
     "\\resources\\views\\horarios",
     "\\resources\\views\\horarios\\grupos"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Config\\UsuarioController.php",
+  "SelectedNode": "\\resources\\views\\configuracion\\registro_actividad\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

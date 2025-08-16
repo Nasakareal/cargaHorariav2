@@ -19,7 +19,7 @@ class RegistroActividadController extends Controller
         if ($request->filled('desde'))   $q->whereDate('fecha', '>=', $request->desde);
         if ($request->filled('hasta'))   $q->whereDate('fecha', '<=', $request->hasta);
 
-        $actividades = $q->orderByDesc('fecha')->paginate(20)->withQueryString();
+        $actividades = $q->orderBy('fecha')->paginate(20)->withQueryString();
 
         return view('configuracion.registro_actividad.index', compact('actividades'));
     }
