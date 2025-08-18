@@ -74,7 +74,7 @@ class ProgramController extends Controller
             'area'            => $request->area,
             'fyh_creacion'    => now(),
             'fyh_actualizacion'=> null,
-            'estado'          => 'ACTIVO',
+            'estado'          => '1',
         ]);
 
         \App\Models\ActividadGeneral::registrar('CREAR', 'programs', null, "Creó el programa {$request->program_name}");

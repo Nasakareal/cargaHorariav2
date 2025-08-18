@@ -4,13 +4,10 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\horarios",
-    "\\resources\\views\\horarios\\grupos",
-    "\\routes"
+    "\\resources\\views\\programas"
   ],
-  "SelectedNode": "\\routes\\api.php",
+  "SelectedNode": "\\resources\\views\\programas\\edit.blade.php",
   "PreviewInSolutionExplorer": false
 }
