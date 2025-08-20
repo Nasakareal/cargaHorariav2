@@ -44,6 +44,10 @@ use App\Http\Controllers\Config\CalendarioEscolarController;
 use App\Http\Controllers\Config\HorarioPasadoController;
 use App\Http\Controllers\Config\RegistroActividadController;
 
+Route::get('/politica-privacidad', function () {
+    return view('privacy');
+})->name
+
 // Página pública de bienvenida
 Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
 
