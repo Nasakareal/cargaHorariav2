@@ -1,9 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\resources",
-    "\\resources\\views"
+    "\\app",
+    "\\app\\Http",
+    "\\app\\Http\\Controllers"
   ],
-  "SelectedNode": "\\resources\\views\\privacy.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\SubjectController.php",
   "PreviewInSolutionExplorer": false
 }

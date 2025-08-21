@@ -29,15 +29,6 @@ use App\Http\Controllers\Api\Institucion\SalonesApiController;
 use App\Http\Controllers\Api\Institucion\EdificiosApiController;
 use App\Http\Controllers\Api\Institucion\LaboratoriosApiController;
 
-// ========= CONFIG =========
-use App\Http\Controllers\Api\Config\UsuarioApiController;
-use App\Http\Controllers\Api\Config\RolApiController;
-use App\Http\Controllers\Api\Config\EliminarMateriasApiController;
-use App\Http\Controllers\Api\Config\ActivarUsuariosApiController;
-use App\Http\Controllers\Api\Config\EstadisticaApiController;
-use App\Http\Controllers\Api\Config\CalendarioEscolarApiController;
-use App\Http\Controllers\Api\Config\HorarioPasadoApiController;
-use App\Http\Controllers\Api\Config\RegistroActividadApiController;
 
 // ========= PROFES ←→ MATERIAS (ASIGNACIÓN) =========
 use App\Http\Controllers\Api\TeacherSubjectApiController;
@@ -121,20 +112,24 @@ Route::prefix('v1/horarios')->group(function () {
 });
 
 // ===================== HORARIO MANUAL (DRAG & DROP) =====================
-Route::prefix('v1/horarios/manual')->middleware(['auth:sanctum'])->group(function () {
-    Route::post('/asignaciones',         [HorarioManualApiController::class, 'store']);
-    Route::put('/asignaciones/{id}',     [HorarioManualApiController::class, 'update'])->whereNumber('id');
-    Route::delete('/asignaciones/{id}',  [HorarioManualApiController::class, 'destroy'])->whereNumber('id');
+Route::prefix('v1/horarios/manual')
+    ->middleware(['auth:sanctum','can:bloquear horario'])
+    ->group(function () {
 
-    Route::post('/ajax/mover',           [HorarioManualApiController::class, 'mover']);
-    Route::post('/ajax/borrar',          [HorarioManualApiController::class, 'borrar']);
-    Route::post('/ajax/crear',           [HorarioManualApiController::class, 'crear']);
+    Route::post('/asignaciones',        [HorarioManualApiController::class, 'store'])->middleware('can:crear horario laboratorio');
+    Route::put('/asignaciones/{id}',    [HorarioManualApiController::class, 'update'])->whereNumber('id')->middleware('can:editar horario laboratorio');
+    Route::delete('/asignaciones/{id}', [HorarioManualApiController::class, 'destroy'])->whereNumber('id')->middleware('can:borrar horario laboratorio');
 
-    Route::get('/ajax/grupo/{grupo_id}',       [HorarioManualApiController::class, 'dataPorGrupo'])->whereNumber('grupo_id');
-    Route::get('/ajax/profesor/{profesor_id}', [HorarioManualApiController::class, 'dataPorProfesor'])->whereNumber('profesor_id');
-    Route::get('/ajax/eventos-espacio',        [HorarioManualApiController::class, 'eventosPorEspacio']);
-    Route::get('/ajax/opciones',               [HorarioManualApiController::class, 'opciones']);
+    Route::post('/ajax/mover',          [HorarioManualApiController::class, 'mover'])->middleware('can:editar horario laboratorio');
+    Route::post('/ajax/borrar',         [HorarioManualApiController::class, 'borrar'])->middleware('can:borrar horario laboratorio');
+    Route::post('/ajax/crear',          [HorarioManualApiController::class, 'crear'])->middleware('can:crear horario laboratorio');
+
+    Route::get('/ajax/grupo/{grupo_id}',       [HorarioManualApiController::class, 'dataPorGrupo'])->whereNumber('grupo_id')->middleware('can:ver horario laboratorio');
+    Route::get('/ajax/profesor/{profesor_id}', [HorarioManualApiController::class, 'dataPorProfesor'])->whereNumber('profesor_id')->middleware('can:ver horario laboratorio');
+    Route::get('/ajax/eventos-espacio',        [HorarioManualApiController::class, 'eventosPorEspacio'])->middleware('can:ver horario laboratorio');
+    Route::get('/ajax/opciones',               [HorarioManualApiController::class, 'opciones'])->middleware('can:ver horario laboratorio');
 });
+
 
 // ===================== INSTITUCIÓN =====================
 Route::prefix('v1/institucion')->group(function () {
@@ -149,62 +144,6 @@ Route::prefix('v1/institucion')->group(function () {
     Route::get('/laboratorios/{id}',           [LaboratoriosApiController::class, 'show'])->whereNumber('id');
 });
 
-// ===================== CONFIGURACIÓN (ADMIN) =====================
-Route::prefix('v1/config')->middleware('auth:sanctum')->group(function () {
-    // Usuarios
-    Route::get('/usuarios',      [UsuarioApiController::class, 'index']);
-    Route::post('/usuarios',     [UsuarioApiController::class, 'store']);
-    Route::get('/usuarios/{id}', [UsuarioApiController::class, 'show'])->whereNumber('id');
-    Route::put('/usuarios/{id}', [UsuarioApiController::class, 'update'])->whereNumber('id');
-    Route::delete('/usuarios/{id}', [UsuarioApiController::class, 'destroy'])->whereNumber('id');
-
-    // Activar/Desactivar
-    Route::post('/activar-usuarios/on',  [ActivarUsuariosApiController::class, 'activarTodos']);
-    Route::post('/activar-usuarios/off', [ActivarUsuariosApiController::class, 'desactivarTodos']);
-
-    // Roles
-    Route::get('/roles',      [RolApiController::class, 'index']);
-    Route::post('/roles',     [RolApiController::class, 'store']);
-    Route::get('/roles/{id}', [RolApiController::class, 'show'])->whereNumber('id');
-    Route::put('/roles/{id}', [RolApiController::class, 'update'])->whereNumber('id');
-    Route::delete('/roles/{id}', [RolApiController::class, 'destroy'])->whereNumber('id');
-    Route::get('/roles/{id}/permissions',  [RolApiController::class, 'permissions'])->whereNumber('id');
-    Route::post('/roles/{id}/permissions', [RolApiController::class, 'assignPermissions'])->whereNumber('id');
-
-    // Eliminar materias
-    Route::get('/eliminar-materias', [EliminarMateriasApiController::class, 'index']);
-    Route::get('/eliminar-materias/profesor/{id}', [EliminarMateriasApiController::class, 'edit'])->whereNumber('id');
-    Route::post('/eliminar-materias/profesor/{id}', [EliminarMateriasApiController::class, 'destroySelected'])->whereNumber('id');
-    Route::post('/eliminar-materias/profesor/{id}/ajax/materias-asignadas', [EliminarMateriasApiController::class, 'materiasAsignadas'])->whereNumber('id');
-    Route::post('/eliminar-materias/profesor/{id}/ajax/horas', [EliminarMateriasApiController::class, 'horasProfesor'])->whereNumber('id');
-
-    // Estadísticas
-    Route::get('/estadisticas', [EstadisticaApiController::class, 'index']);
-    Route::get('/estadisticas/export/grupos', [EstadisticaApiController::class, 'exportHorariosGrupos']);
-    Route::get('/estadisticas/export/grupos-sin-profesor', [EstadisticaApiController::class, 'exportHorariosGruposSinProfesor']);
-    Route::get('/estadisticas/export/profesores', [EstadisticaApiController::class, 'exportHorariosProfesores']);
-
-    // Calendario Escolar
-    Route::get('/calendario-escolar', [CalendarioEscolarApiController::class, 'index']);
-    Route::post('/calendario-escolar', [CalendarioEscolarApiController::class, 'store']);
-    Route::get('/calendario-escolar/{id}', [CalendarioEscolarApiController::class, 'show'])->whereNumber('id');
-    Route::put('/calendario-escolar/{id}', [CalendarioEscolarApiController::class, 'update'])->whereNumber('id');
-    Route::delete('/calendario-escolar/{id}', [CalendarioEscolarApiController::class, 'destroy'])->whereNumber('id');
-
-    // Horarios Pasados
-    Route::get('/horarios-pasados', [HorarioPasadoApiController::class, 'index']);
-    Route::post('/horarios-pasados', [HorarioPasadoApiController::class, 'store']);
-    Route::get('/horarios-pasados/{id}', [HorarioPasadoApiController::class, 'show'])->whereNumber('id');
-    Route::put('/horarios-pasados/{id}', [HorarioPasadoApiController::class, 'update'])->whereNumber('id');
-    Route::delete('/horarios-pasados/{id}', [HorarioPasadoApiController::class, 'destroy'])->whereNumber('id');
-
-    // Registro Actividad
-    Route::get('/registro-actividad', [RegistroActividadApiController::class, 'index']);
-    Route::post('/registro-actividad', [RegistroActividadApiController::class, 'store']);
-    Route::get('/registro-actividad/{id}', [RegistroActividadApiController::class, 'show'])->whereNumber('id');
-    Route::put('/registro-actividad/{id}', [RegistroActividadApiController::class, 'update'])->whereNumber('id');
-    Route::delete('/registro-actividad/{id}', [RegistroActividadApiController::class, 'destroy'])->whereNumber('id');
-});
 
 // ===================== 404 API =====================
 Route::fallback(function () {

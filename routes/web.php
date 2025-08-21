@@ -46,7 +46,7 @@ use App\Http\Controllers\Config\RegistroActividadController;
 
 Route::get('/politica-privacidad', function () {
     return view('privacy');
-})->name
+})->name('privacy');
 
 // Página pública de bienvenida
 Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
