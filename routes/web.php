@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
+use App\Http\Controllers\GrupoExcelController;
+
 // Welcome
 use App\Http\Controllers\WelcomeController;
 
@@ -105,6 +107,12 @@ Route::prefix('grupos')->name('grupos.')->middleware('can:ver grupos')->group(fu
     Route::get('/{id}',       [GrupoController::class,'show'])->name('show')->whereNumber('id');
     Route::delete('/{id}',    [GrupoController::class,'destroy'])->middleware('can:eliminar grupos')->name('destroy')->whereNumber('id');
     Route::get('/{id}/validar-salon/{classroom}', [GrupoController::class,'validarSalon'])->name('validar-salon')->middleware('can:editar grupos')->whereNumber('id')->whereNumber('classroom');
+});
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/grupos/plantilla-excel', [GrupoExcelController::class, 'template'])->name('grupos.excel.plantilla')->middleware('can:crear grupos');
+
+    Route::post('/grupos/importar-excel', [GrupoExcelController::class, 'import'])->name('grupos.excel.import')->middleware('can:crear grupos');
 });
 
 // =================== AJAX: edificio → plantas / salones ===================

@@ -11,10 +11,22 @@
   <div class="row">
     <div class="col-12">
       <div class="card card-outline card-primary">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h3 class="card-title">Grupos registrados</h3>
 
-          <div class="card-tools">
+        {{-- CABECERA --}}
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h3 class="card-title mb-0">Grupos registrados</h3>
+
+          <div class="card-tools d-flex align-items-center">
+            @can('crear grupos')
+              {{-- NUEVO: Botón Cargar Excel --}}
+              <button type="button"
+                      class="btn btn-outline-primary btn-sm mr-2"
+                      data-toggle="modal"
+                      data-target="#modalImportExcel">
+                <i class="bi bi-file-earmark-spreadsheet"></i> Cargar Excel
+              </button>
+            @endcan
+
             @can('crear grupos')
               <a href="{{ route('grupos.create') }}" class="btn btn-primary btn-sm">
                 <i class="bi bi-plus-square"></i> Añadir nuevo grupo
@@ -23,7 +35,17 @@
           </div>
         </div>
 
+        {{-- CUERPO --}}
         <div class="card-body">
+
+          {{-- NUEVO: Mensajes flash --}}
+          @if(session('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+          @endif
+          @if(session('error'))
+            <div class="alert alert-danger" style="white-space: pre-line;">{{ session('error') }}</div>
+          @endif
+
           <table id="tablaGrupos" class="table table-striped table-bordered table-hover table-sm">
             <thead>
               <tr>
@@ -53,7 +75,7 @@
                   $tot    = (int)($g->total_materias ?? 0);
                   $asig   = (int)($g->materias_asignadas ?? 0);
                   $falt   = (int)($g->materias_no_cubiertas ?? max($tot - $asig, 0));
-                  $orderTerm = is_numeric($term) ? (int)$term : $term; // para ordenar bien 1,2,10...
+                  $orderTerm = is_numeric($term) ? (int)$term : $term;
                 @endphp
                 <tr>
                   <td class="text-center">{{ $i + 1 }}</td>
@@ -97,12 +119,66 @@
               @endforeach
             </tbody>
           </table>
-        </div>
+        </div> {{-- /card-body --}}
 
       </div>
     </div>
   </div>
 </div>
+
+{{-- NUEVO: Modal Importar Excel (Bootstrap 4 / AdminLTE 3) --}}
+@can('crear grupos')
+<div class="modal fade" id="modalImportExcel" tabindex="-1" role="dialog" aria-labelledby="modalImportExcelLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <form action="{{ route('grupos.excel.import') }}" method="POST" enctype="multipart/form-data" class="modal-content">
+      @csrf
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalImportExcelLabel">Importar grupos desde Excel/CSV</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <p class="mb-2">
+          El archivo debe tener <strong>exactamente 9 columnas</strong> y se
+          <strong>omiten las primeras 3 filas</strong>.
+        </p>
+        <ul class="small mb-3">
+          <li>0: No.</li>
+          <li>1: Área</li>
+          <li>2: Abreviatura</li>
+          <li>3: Programa</li>
+          <li>4: Nivel educativo</li>
+          <li>5: Cuatrimestre (número)</li>
+          <li>6: Sufijo (A, B, ...)</li>
+          <li>7: Turno</li>
+          <li>8: Volumen</li>
+        </ul>
+
+        <div class="mb-2">
+          <a href="{{ route('grupos.excel.plantilla') }}" class="btn btn-link p-0">Descargar plantilla (CSV)</a>
+        </div>
+
+        <div class="form-group mb-0">
+          <label for="file">Archivo (.xlsx o .csv)</label>
+          <input type="file" class="form-control @error('file') is-invalid @enderror" id="file" name="file" required>
+          @error('file')
+            <div class="invalid-feedback">{{ $message }}</div>
+          @enderror
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="bi bi-upload"></i> Importar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+@endcan
 @endsection
 
 {{-- SOLO estilos de Buttons (AdminLTE ya trae DataTables core) --}}
@@ -146,7 +222,6 @@ function confirmarEliminarGrupo(id, btn){
 }
 
 $(function () {
-  // Limpieza para exportar sin HTML
   function limpiar(data){
     if(typeof data !== 'string') return data;
     data = data.replace(/<br\s*\/?>/gi, '\n').replace(/\u00A0/g, ' ');
@@ -158,59 +233,39 @@ $(function () {
     lengthMenu: [[5,10,25,50,100,-1],[5,10,25,50,100,'Todas']],
     language: { url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json' },
     responsive: true, lengthChange: true, autoWidth: false,
-
     dom: 'Blfrtip',
-
-    // Orden por Programa (2), luego Cuatr. (4), luego Grupo (1)
     order: [[2,'asc'], [4,'asc'], [1,'asc']],
     columnDefs: [
-      { targets: 0,  orderable: false, searchable: false }, // #
-      { targets: -1, orderable: false, searchable: false }, // Acciones
-      { targets: 4,  className: 'text-center' }, // Cuatr.
-      { targets: [6,7,8,9], className: 'text-center' }, // números
+      { targets: 0,  orderable: false, searchable: false },
+      { targets: -1, orderable: false, searchable: false },
+      { targets: 4,  className: 'text-center' },
+      { targets: [6,7,8,9], className: 'text-center' },
     ],
-
     buttons: [
       {
         extend:'collection',
         text:'Opciones',
         buttons: [
-          {
-            extend:'copyHtml5', text:'Copiar',
-            exportOptions:{
-              columns: ':not(.no-export)',
-              stripHtml: true,
-              modifier: { search:'applied', order:'applied', page:'current' },
-              format: { body:limpiar, header:limpiar }
-            }
+          { extend:'copyHtml5', text:'Copiar',
+            exportOptions:{ columns: ':not(.no-export)', stripHtml:true,
+              modifier:{ search:'applied', order:'applied', page:'current' },
+              format:{ body:limpiar, header:limpiar } }
           },
-          {
-            extend:'csvHtml5', text:'CSV', filename:'Grupos',
-            exportOptions:{
-              columns: ':not(.no-export)',
-              stripHtml: true,
-              modifier: { search:'applied', order:'applied', page:'current' },
-              format: { body:limpiar, header:limpiar }
-            }
+          { extend:'csvHtml5', text:'CSV', filename:'Grupos',
+            exportOptions:{ columns: ':not(.no-export)', stripHtml:true,
+              modifier:{ search:'applied', order:'applied', page:'current' },
+              format:{ body:limpiar, header:limpiar } }
           },
-          {
-            extend:'excelHtml5', text:'Excel', filename:'Grupos',
-            exportOptions:{
-              columns: ':not(.no-export)',
-              stripHtml: true,
-              modifier: { search:'applied', order:'applied', page:'current' },
-              format: { body:limpiar, header:limpiar }
-            }
+          { extend:'excelHtml5', text:'Excel', filename:'Grupos',
+            exportOptions:{ columns: ':not(.no-export)', stripHtml:true,
+              modifier:{ search:'applied', order:'applied', page:'current' },
+              format:{ body:limpiar, header:limpiar } }
           },
-          {
-            extend:'pdfHtml5', text:'PDF', filename:'Grupos', title:'Listado de Grupos',
+          { extend:'pdfHtml5', text:'PDF', filename:'Grupos', title:'Listado de Grupos',
             orientation:'landscape', pageSize:'LEGAL',
-            exportOptions:{
-              columns: ':not(.no-export)',
-              stripHtml: true,
-              modifier: { search:'applied', order:'applied', page:'current' },
-              format: { body:limpiar, header:limpiar }
-            },
+            exportOptions:{ columns: ':not(.no-export)', stripHtml:true,
+              modifier:{ search:'applied', order:'applied', page:'current' },
+              format:{ body:limpiar, header:limpiar } },
             customize: function (doc) {
               doc.pageMargins = [24,24,24,24];
               doc.defaultStyle.fontSize = 9;
@@ -221,14 +276,10 @@ $(function () {
               }
             }
           },
-          {
-            extend:'print', text:'Imprimir', title:'Listado de Grupos',
-            exportOptions:{
-              columns: ':not(.no-export)',
-              stripHtml: true,
-              modifier: { search:'applied', order:'applied', page:'current' },
-              format: { body:limpiar, header:limpiar }
-            }
+          { extend:'print', text:'Imprimir', title:'Listado de Grupos',
+            exportOptions:{ columns: ':not(.no-export)', stripHtml:true,
+              modifier:{ search:'applied', order:'applied', page:'current' },
+              format:{ body:limpiar, header:limpiar } }
           }
         ]
       },
@@ -237,6 +288,10 @@ $(function () {
   });
 
   dt.buttons().container().appendTo('#tablaGrupos_wrapper .col-md-6:eq(0)');
+
+  @if ($errors->has('file'))
+    $('#modalImportExcel').modal('show');
+  @endif
 });
 </script>
 @endsection

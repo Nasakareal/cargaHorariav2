@@ -3,8 +3,13 @@
     "",
     "\\app",
     "\\app\\Http",
-    "\\app\\Http\\Controllers"
+    "\\app\\Http\\Controllers",
+    "\\app\\Http\\Requests",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\grupos",
+    "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\SubjectController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\GrupoExcelController.php",
   "PreviewInSolutionExplorer": false
 }
