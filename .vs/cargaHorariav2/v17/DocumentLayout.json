@@ -7,8 +7,12 @@
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\SubjectController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\GrupoController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\GrupoController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\materias\\edit.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\materias\\edit.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\materias\\index.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\materias\\index.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -18,21 +22,8 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 0,
           "Children": [
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "GrupoController.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\GrupoController.php",
-              "RelativeDocumentMoniker": "app\\Http\\Controllers\\GrupoController.php",
-              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\GrupoController.php",
-              "RelativeToolTip": "app\\Http\\Controllers\\GrupoController.php",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAGgBAAAxAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-08-28T05:46:17.055Z",
-              "EditorCaption": ""
-            },
             {
               "$type": "Document",
               "DocumentIndex": 0,
@@ -41,9 +32,35 @@
               "RelativeDocumentMoniker": "app\\Http\\Controllers\\SubjectController.php",
               "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\SubjectController.php",
               "RelativeToolTip": "app\\Http\\Controllers\\SubjectController.php",
-              "ViewState": "AgIAAEABAAAAAAAAAAAkwHEBAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAO0AAAAAAAAAAAAAAAEBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-08-28T05:43:44.399Z",
+              "WhenOpened": "2025-08-28T05:56:44.947Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "edit.blade.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\materias\\edit.blade.php",
+              "RelativeDocumentMoniker": "resources\\views\\materias\\edit.blade.php",
+              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\materias\\edit.blade.php",
+              "RelativeToolTip": "resources\\views\\materias\\edit.blade.php",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2025-08-28T05:56:19.859Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "index.blade.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\materias\\index.blade.php",
+              "RelativeDocumentMoniker": "resources\\views\\materias\\index.blade.php",
+              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\materias\\index.blade.php",
+              "RelativeToolTip": "resources\\views\\materias\\index.blade.php",
+              "ViewState": "AgIAAFMBAAAAAAAAAAAkwIMBAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2025-08-28T05:52:41.648Z",
               "EditorCaption": ""
             }
           ]

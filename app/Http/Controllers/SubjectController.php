@@ -246,6 +246,16 @@ class SubjectController extends Controller
                 []
             );
 
+
+
+            $returnTo = $request->input('return_to');
+            $msg = 'Materia actualizada correctamente.';
+
+            if ($returnTo) {
+                return redirect()->to($returnTo)->with('success', $msg);
+            }
+
+
             ActividadGeneral::registrar(
                 'ACTUALIZAR',
                 'subjects',
@@ -254,7 +264,7 @@ class SubjectController extends Controller
             );
 
             DB::commit();
-            return redirect()->route('materias.index')->with('success', 'Materia actualizada correctamente.');
+             return redirect()->route('materias.index')->with('success', $msg);
         } catch (\Illuminate\Database\QueryException $e) {
             DB::rollBack();
             Log::error('Error BD al actualizar materia', ['code'=>$e->getCode(),'msg'=>$e->getMessage()]);

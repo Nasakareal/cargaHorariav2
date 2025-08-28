@@ -10,6 +10,7 @@
 <div class="container-xl">
   <div class="row">
     <div class="col-12">
+    <input type="hidden" name="return_to" value="{{ request('return_to', url()->previous()) }}">
 
       {{-- Errores en línea (además lanzamos SweetAlert abajo) --}}
       @if ($errors->any())

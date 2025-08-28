@@ -206,6 +206,8 @@ $(function () {
     language: { url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json' },
     responsive: true, lengthChange: true, autoWidth: false,
     dom: 'Blfrtip',
+    // <<< NUEVO: guarda estado de DataTables (búsqueda, página, colVis, etc.)
+    stateSave: true,
     buttons: [
       {
         extend:'collection',
@@ -286,15 +288,47 @@ $(function () {
   // Conjunto de EXCLUIDOS (desmarcados). Por defecto vacío => se muestran todos.
   const excluidos = new Set();
 
+  // <<< NUEVO: clave de almacenamiento para este índice
+  const STORAGE_KEY = 'materiasProgExcluidos_v1';
+
   function totalProgramas(){ return $checks().length; }
   function seleccionados(){ return $checks().filter(':checked').length; }
 
-  // Actualiza chip/resumen
   function refrescarResumen(){
     const sel = seleccionados();
     const tot = totalProgramas();
     $resumen.text(`Mostrando ${sel}/${tot}`);
     $chip.text(sel === tot ? 'Mostrando: todos' : `Mostrando: ${sel}/${tot}`);
+  }
+
+  // Guarda el set de excluidos en localStorage
+  function saveFiltro(){
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(excluidos)));
+    } catch(e) { /* nada */ }
+  }
+
+  // Restaura el set de excluidos desde localStorage
+  function restoreFiltro(){
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return false;
+
+      excluidos.clear();
+      arr.forEach(v => excluidos.add(String(v)));
+
+      // Sincroniza checks: excluido => desmarcado, resto marcado
+      $checks().each(function(){
+        const val = (this.value || '').trim();
+        $(this).prop('checked', !excluidos.has(val));
+      });
+
+      refrescarResumen();
+      dt.draw();
+      return true;
+    } catch(e){ return false; }
   }
 
   // Búsqueda dentro del dropdown
@@ -321,11 +355,8 @@ $(function () {
 
   // Filtro DataTables con función personalizada (exclusión)
   $.fn.dataTable.ext.search.push(function(settings, data){
-    // Aplica solo a esta tabla
     if (settings.nTable && settings.nTable.id !== 'tablaMaterias') return true;
-
     const programa = (data[4] || '').trim(); // columna Programa
-    // Si el programa está desmarcado => se excluye
     return !excluidos.has(programa);
   });
 
@@ -338,11 +369,20 @@ $(function () {
     else { excluidos.add(val); }
 
     refrescarResumen();
+    saveFiltro();       // <<< NUEVO: persistimos el filtro
     dt.draw();
   });
 
-  // Estado inicial: todos marcados -> sin exclusiones
-  refrescarResumen();
+  // Estado inicial
+  // Intentar restaurar desde localStorage; si no hay nada, todos marcados
+  const ok = restoreFiltro();
+  if (!ok) {
+    $checks().prop('checked', true);
+    excluidos.clear();
+    refrescarResumen();
+    dt.draw();
+  }
 });
 </script>
 @endsection
+

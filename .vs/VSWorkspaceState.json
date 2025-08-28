@@ -3,7 +3,11 @@
     "",
     "\\app",
     "\\app\\Http",
-    "\\app\\Http\\Controllers"
+    "\\app\\Http\\Controllers",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\materias"
   ],
+  "SelectedNode": "\\app\\Http\\Controllers\\SubjectController.php",
   "PreviewInSolutionExplorer": false
 }
