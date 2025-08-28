@@ -15,7 +15,6 @@ class HomeController extends Controller
     public function index()
     {
         // ===== Resumen global (cubiertas / no cubiertas) =====
-        // Basado en group_subjects (lo que debe cubrirse) y teacher_subjects (lo asignado)
         $resumen = DB::table('group_subjects as gs')
             ->join('subjects as s', 's.subject_id', '=', 'gs.subject_id')
             ->leftJoin('teacher_subjects as ts', function ($q) {

@@ -16,13 +16,10 @@ class User extends Authenticatable
     protected $primaryKey = 'id_usuario';
     public $incrementing = true;
     protected $keyType = 'int';
-
-    /** Timestamps personalizados */
     public $timestamps = true;
     const CREATED_AT = 'fyh_creacion';
     const UPDATED_AT = 'fyh_actualizacion';
 
-    /** Guard para Spatie */
     protected $guard_name = 'web';
 
     protected $fillable = [
@@ -33,7 +30,7 @@ class User extends Authenticatable
         'fyh_creacion',
         'fyh_actualizacion',
         'estado',
-        'foto_perfil',   // puede ser "avatar-#.png" o un nombre de archivo subido
+        'foto_perfil',
         'area',
     ];
 
@@ -44,25 +41,22 @@ class User extends Authenticatable
         'fyh_actualizacion' => 'datetime',
     ];
 
-    /** ===== nombre mostrado (AdminLTE usa ->name) ===== */
     public function getNameAttribute(): string
     {
         return $this->nombres ?: ($this->email ?: 'Usuario');
     }
 
-    /** ===== Hash automático del password ===== */
     public function setPasswordAttribute($value): void
     {
         if (empty($value)) return;
 
         if (is_string($value) && strlen($value) === 60 && str_starts_with($value, '$2y$')) {
-            $this->attributes['password'] = $value; // ya viene hasheado
+            $this->attributes['password'] = $value;
         } else {
             $this->attributes['password'] = Hash::make($value);
         }
     }
 
-    /** ===== Nombre del rol (con Spatie o fallback por rol_id) ===== */
     public function getRolNombreAttribute(): string
     {
         $bySpatie = optional($this->roles->first())->name;
@@ -75,38 +69,48 @@ class User extends Authenticatable
         return 'Sin rol';
     }
 
-    /** ===== Imagen para el menú de usuario de AdminLTE ===== */
     public function adminlte_image(): string
     {
-        // Cache-buster para que el navegador NO guarde la versión anterior
         $ver = optional($this->fyh_actualizacion)->timestamp
             ?? optional($this->fyh_creacion)->timestamp
             ?? time();
 
-        // 1) Si guardaste uno de los avatares predefinidos (p.ej. "avatar-10.png")
-        if (!empty($this->foto_perfil) && str_starts_with($this->foto_perfil, 'avatar-')) {
-            return asset('img/avatar/'.$this->foto_perfil) . '?v=' . $ver;
+        $foto = (string)($this->foto_perfil ?? '');
+
+        if ($foto && (str_starts_with($foto, 'http://') || str_starts_with($foto, 'https://') || str_starts_with($foto, '//'))) {
+            return $foto.(str_contains($foto,'?') ? '&' : '?').'v='.$ver;
         }
 
-        // 2) Si hay archivo subido en public/uploads/perfiles
-        if (!empty($this->foto_perfil)) {
-            return asset('uploads/perfiles/' . ltrim($this->foto_perfil, '/')) . '?v=' . $ver;
+        if ($foto && str_starts_with($foto, 'avatar-')) {
+            $file = str_contains($foto, '.') ? $foto : ($foto.'.jpg');
+            return asset('dist/img/avatar/'.$file).'?v='.$ver;
         }
 
-        // 3) Fallback determinístico 1..25
+        if ($foto) {
+            $p = ltrim($foto, '/');
+
+            if (str_starts_with($p, 'public/')) {
+                $p = substr($p, 7);
+            }
+
+            if (!str_starts_with($p, 'uploads/perfiles/')) {
+                $p = 'uploads/perfiles/'.$p;
+            }
+
+            return asset($p).'?v='.$ver;
+        }
+
         $max  = 25;
         $seed = $this->id_usuario ?: crc32(strtolower((string)($this->email ?? 'guest')));
         $n    = ((int)$seed % $max) + 1;
-        return asset("img/avatar/avatar-{$n}.png") . '?v=' . $ver;
+        return asset("dist/img/avatar/avatar-{$n}.jpg").'?v='.$ver;
     }
 
-    /** ===== Descripción bajo el nombre en el menú ===== */
     public function adminlte_desc(): string
     {
         return $this->area ?: 'Usuario';
     }
 
-    /** ===== URL del perfil en el menú ===== */
     public function adminlte_profile_url()
     {
         return route('perfil.index');

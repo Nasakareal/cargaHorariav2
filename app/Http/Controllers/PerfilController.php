@@ -114,8 +114,16 @@ class PerfilController extends Controller
 
     private function avatarList(): array
     {
-        $files = glob(public_path('img/avatar/avatar-*.png')) ?: [];
+        $base = public_path('dist/img/avatar');
+
+        $files = array_merge(
+            glob($base.'/avatar-*.jpg') ?: [],
+            glob($base.'/avatar-*.jpeg') ?: [],
+            glob($base.'/avatar-*.png') ?: []
+        );
+
         sort($files, SORT_NATURAL);
+
         return array_map(fn($p) => basename($p), $files);
     }
 }
