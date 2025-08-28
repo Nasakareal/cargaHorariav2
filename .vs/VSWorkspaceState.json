@@ -9,6 +9,6 @@
     "\\resources\\views",
     "\\resources\\views\\materias"
   ],
-  "SelectedNode": "\\app\\Models\\Subject.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\GrupoExcelController.php",
   "PreviewInSolutionExplorer": false
 }

@@ -7,6 +7,7 @@
 @endsection
 
 @section('content')
+<input type="hidden" name="return_to" value="{{ request('return_to', url()->previous()) }}">
 <div class="container-xl">
   <div class="row">
     <div class="col-12">

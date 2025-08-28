@@ -122,9 +122,10 @@
                       </a>
 
                       @can('editar materias')
-                        <a href="{{ route('materias.edit', $id) }}" class="btn btn-success btn-sm" title="Editar">
-                          <i class="bi bi-pencil"></i>
+                        <a href="{{ route('materias.edit', $m->subject_id) }}?return_to={{ urlencode(request()->fullUrl()) }}" class="btn btn-success btn-sm">
+                           <i class="bi bi-pencil"></i>
                         </a>
+
                       @endcan
 
                       @can('eliminar materias')

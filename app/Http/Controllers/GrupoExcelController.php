@@ -62,8 +62,6 @@ class GrupoExcelController extends Controller
             $volume          = $data[8] ?? null;
 
             $group_name = mb_strtoupper("{$abreviatura}-{$term_number}{$group_suffix}", 'UTF-8');
-
-            // -------- PREVALIDACIONES EN ESPAÑOL (no insertamos si fallan) --------
             $fallas = [];
 
             if (!$abreviatura || $abreviatura === '-') {
