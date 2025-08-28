@@ -67,11 +67,6 @@ class SubjectController extends Controller
     # ===================== STORE =====================
     public function store(Request $request)
     {
-        Log::info('[Subjects.store][IN]', [
-            'user_id' => Auth::id(),
-            'payload' => $request->except(['_token'])
-        ]);
-
         $data = $request->validate([
             'subject_name' => [
                 'required', 'string', 'max:255',
@@ -107,9 +102,8 @@ class SubjectController extends Controller
                 'unidades'                    => (int) $data['unidades'],
                 'estado'                      => '1',
             ]);
-            Log::info('[Subjects.store][CREATED]', ['subject_id' => $materia->subject_id]);
 
-            $uo = DB::table('program_term_subjects')->updateOrInsert(
+            DB::table('program_term_subjects')->updateOrInsert(
                 [
                     'program_id' => (int) $data['program_id'],
                     'term_id'    => (int) $data['term_id'],
@@ -117,34 +111,18 @@ class SubjectController extends Controller
                 ],
                 []
             );
-            Log::debug('[Subjects.store][PTS upsert]', ['result' => (bool)$uo]);
-
-            $this->vincularMateriaAGrupos((int)$materia->subject_id);
-            Log::debug('[Subjects.store][vincularMateriaAGrupos][OK]', ['subject_id' => $materia->subject_id]);
 
             ActividadGeneral::registrar('CREAR', 'subjects', $materia->subject_id, "Creó materia {$materia->subject_name}");
 
             DB::commit();
-            Log::info('[Subjects.store][OK]', ['subject_id' => $materia->subject_id]);
             return redirect()->route('materias.index')->with('success', 'Materia creada correctamente.');
-        } catch (QueryException $e) {
+        } catch (\Illuminate\Database\QueryException $e) {
             DB::rollBack();
-            Log::error('[Subjects.store][SQL]', [
-                'code'        => $e->getCode(),
-                'sql_state'   => $e->errorInfo[0] ?? null,
-                'driver_code' => $e->errorInfo[1] ?? null,
-                'driver_msg'  => $e->errorInfo[2] ?? null,
-                'sql'         => method_exists($e, 'getSql') ? $e->getSql() : null,
-                'bindings'    => method_exists($e, 'getBindings') ? $e->getBindings() : null,
-            ]);
+            Log::error('Error BD al crear materia', ['code' => $e->getCode(), 'msg' => $e->getMessage()]);
             return back()->withInput()->with('error', 'Error de base de datos al crear la materia.');
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('[Subjects.store][EXCEPTION]', [
-                'type' => get_class($e),
-                'msg'  => $e->getMessage(),
-                'trace'=> $e->getTraceAsString(),
-            ]);
+            Log::error('Error inesperado al crear materia', ['msg' => $e->getMessage()]);
             return back()->withInput()->with('error', 'Ocurrió un error inesperado al crear la materia.');
         }
     }
@@ -196,15 +174,8 @@ class SubjectController extends Controller
     # ===================== UPDATE =====================
     public function update(Request $request, $id)
     {
-        Log::info('[Subjects.update][IN]', [
-            'user_id'    => Auth::id(),
-            'subject_id' => (int)$id,
-            'payload'    => $request->except(['_token','_method'])
-        ]);
-
         $materia = Subject::where('subject_id', (int)$id)->first();
         if (!$materia) {
-            Log::warning('[Subjects.update][NOT_FOUND]', ['subject_id' => (int)$id]);
             return redirect()->route('materias.index')->with('error', 'La materia no existe.');
         }
 
@@ -237,29 +208,18 @@ class SubjectController extends Controller
 
             $oldProgramId = (int) $materia->program_id;
             $newProgramId = (int) $data['program_id'];
-            $oldTermId    = (int) $materia->term_id;
-            $newTermId    = (int) $data['term_id'];
-
-            Log::debug('[Subjects.update][BEFORE]', [
-                'oldProgramId' => $oldProgramId,
-                'newProgramId' => $newProgramId,
-                'oldTermId'    => $oldTermId,
-                'newTermId'    => $newTermId,
-            ]);
-
             $materia->update([
                 'subject_name'                => $data['subject_name'],
                 'weekly_hours'                => (int) $data['weekly_hours'],
                 'max_consecutive_class_hours' => (int) $data['max_consecutive_class_hours'],
                 'program_id'                  => $newProgramId,
-                'term_id'                     => $newTermId,
+                'term_id'                     => (int) $data['term_id'],
                 'unidades'                    => (int) $data['unidades'],
                 'estado'                      => '1',
             ]);
-            Log::info('[Subjects.update][UPDATED_SUBJECT]', ['subject_id' => $materia->subject_id]);
 
             if ($oldProgramId !== $newProgramId) {
-                $deleted = DB::table('program_term_subjects as pts_old')
+                DB::table('program_term_subjects as pts_old')
                   ->where('pts_old.subject_id', $materia->subject_id)
                   ->where('pts_old.program_id', $oldProgramId)
                   ->whereExists(function ($q) use ($materia, $newProgramId) {
@@ -271,21 +231,13 @@ class SubjectController extends Controller
                   })
                   ->delete();
 
-                Log::debug('[Subjects.update][PTS delete duplicates]', [
-                    'deleted_rows' => $deleted
-                ]);
-
-                $updated = DB::table('program_term_subjects')
+                DB::table('program_term_subjects')
                   ->where('subject_id', $materia->subject_id)
                   ->where('program_id', $oldProgramId)
                   ->update(['program_id' => $newProgramId]);
-
-                Log::debug('[Subjects.update][PTS migrate program_id]', [
-                    'updated_rows' => $updated
-                ]);
             }
 
-            $uo = DB::table('program_term_subjects')->updateOrInsert(
+            DB::table('program_term_subjects')->updateOrInsert(
                 [
                     'subject_id' => (int) $materia->subject_id,
                     'term_id'    => (int) $data['term_id'],
@@ -293,10 +245,6 @@ class SubjectController extends Controller
                 ],
                 []
             );
-            Log::debug('[Subjects.update][PTS upsert target pair]', ['result' => (bool)$uo]);
-
-            $this->vincularMateriaAGrupos((int)$materia->subject_id);
-            Log::debug('[Subjects.update][vincularMateriaAGrupos][OK]', ['subject_id' => $materia->subject_id]);
 
             ActividadGeneral::registrar(
                 'ACTUALIZAR',
@@ -306,28 +254,14 @@ class SubjectController extends Controller
             );
 
             DB::commit();
-            Log::info('[Subjects.update][OK]', ['subject_id' => $materia->subject_id]);
             return redirect()->route('materias.index')->with('success', 'Materia actualizada correctamente.');
-        } catch (QueryException $e) {
+        } catch (\Illuminate\Database\QueryException $e) {
             DB::rollBack();
-            Log::error('[Subjects.update][SQL]', [
-                'subject_id'  => (int)$id,
-                'code'        => $e->getCode(),
-                'sql_state'   => $e->errorInfo[0] ?? null,
-                'driver_code' => $e->errorInfo[1] ?? null,
-                'driver_msg'  => $e->errorInfo[2] ?? null,
-                'sql'         => method_exists($e, 'getSql') ? $e->getSql() : null,
-                'bindings'    => method_exists($e, 'getBindings') ? $e->getBindings() : null,
-            ]);
+            Log::error('Error BD al actualizar materia', ['code'=>$e->getCode(),'msg'=>$e->getMessage()]);
             return back()->withInput()->with('error', 'Error de base de datos al actualizar la materia.');
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('[Subjects.update][EXCEPTION]', [
-                'subject_id' => (int)$id,
-                'type'       => get_class($e),
-                'msg'        => $e->getMessage(),
-                'trace'      => $e->getTraceAsString(),
-            ]);
+            Log::error('Error inesperado al actualizar materia', ['msg'=>$e->getMessage()]);
             return back()->withInput()->with('error', 'Ocurrió un error inesperado al actualizar la materia.');
         }
     }
@@ -335,11 +269,6 @@ class SubjectController extends Controller
     # ===================== DESTROY =====================
     public function destroy($id)
     {
-        Log::info('[Subjects.destroy][IN]', [
-            'user_id'    => Auth::id(),
-            'subject_id' => (int)$id
-        ]);
-
         $materia = Subject::where('subject_id', (int)$id)->first();
         if (!$materia) {
             return redirect()->route('materias.index')->with('error','La materia no existe.');
@@ -356,7 +285,7 @@ class SubjectController extends Controller
             DB::connection($conn)->beginTransaction();
             DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=0');
 
-            // 1) FK dinámicas
+            // 1) Identifica TODAS las tablas que referencian subjects(subject_id) y borra sus filas
             $fks = DB::connection($conn)->select("
                 SELECT TABLE_NAME, COLUMN_NAME
                 FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
@@ -367,17 +296,13 @@ class SubjectController extends Controller
 
             foreach ($fks as $fk) {
                 if (strcasecmp($fk->TABLE_NAME, 'subjects') === 0) { continue; }
-                $del = DB::connection($conn)
+                DB::connection($conn)
                     ->table($fk->TABLE_NAME)
                     ->where($fk->COLUMN_NAME, $materia->subject_id)
                     ->delete();
-                Log::debug('[Subjects.destroy][FK purge]', [
-                    'table' => $fk->TABLE_NAME,
-                    'deleted_rows' => $del
-                ]);
             }
 
-            // 2) Extras conocidas
+            // 2) Tablas conocidas (por si alguna no tuviera FK formal o nombres raros)
             $extras = [
                 'program_term_subjects',
                 'teacher_subjects',
@@ -387,36 +312,32 @@ class SubjectController extends Controller
             ];
             foreach ($extras as $tbl) {
                 try {
-                    $del = DB::connection($conn)->table($tbl)->where('subject_id', $materia->subject_id)->delete();
-                    Log::debug('[Subjects.destroy][EXTRA purge]', ['table'=>$tbl,'deleted_rows'=>$del]);
+                    DB::connection($conn)->table($tbl)->where('subject_id', $materia->subject_id)->delete();
                 } catch (\Throwable $e) {
-                    Log::debug('[Subjects.destroy][EXTRA purge][SKIP]', ['table'=>$tbl,'msg'=>$e->getMessage()]);
                 }
             }
 
             // 3) Borra la materia
-            $delSubj = DB::connection($conn)
+            DB::connection($conn)
                 ->table('subjects')
                 ->where('subject_id', $materia->subject_id)
                 ->delete();
-            Log::info('[Subjects.destroy][DELETE_SUBJECT]', ['deleted_rows'=>$delSubj]);
 
             // 4) Bitácora
             ActividadGeneral::registrar('ELIMINAR', 'subjects', (int)$id, "Eliminó materia {$materia->subject_name}");
 
+            // 🔒 Reactiva FK checks y cierra tx
             DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=1');
             DB::connection($conn)->commit();
 
-            Log::info('[Subjects.destroy][OK]', ['subject_id' => (int)$id]);
             return redirect()->route('materias.index')->with('success','Materia eliminada correctamente.');
 
         } catch (\Throwable $e) {
             try { DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=1'); } catch (\Throwable $e2) {}
             DB::connection($conn)->rollBack();
-            Log::error('[Subjects.destroy][EXCEPTION]', [
+            \Log::error('Error al eliminar materia (forzado)', [
                 'subject_id' => (int)$id,
-                'msg'        => $e->getMessage(),
-                'trace'      => $e->getTraceAsString(),
+                'msg'        => $e->getMessage()
             ]);
             return redirect()->route('materias.index')->with('error', 'No se pudo eliminar: '.$e->getMessage());
         }
@@ -445,45 +366,4 @@ class SubjectController extends Controller
 
         return $pairs;
     }
-
-    private function vincularMateriaAGrupos(int $subjectId): void
-    {
-        // 1) Pairs por pivot
-        $pairs = DB::table('program_term_subjects')
-            ->where('subject_id', $subjectId)
-            ->select('program_id','term_id')
-            ->distinct()
-            ->get();
-
-        // 2) Si no hay en pivot, usar el programa/term directo de subjects
-        if ($pairs->isEmpty()) {
-            $row = DB::table('subjects')
-                ->where('subject_id', $subjectId)
-                ->first(['program_id','term_id']);
-            if ($row && $row->program_id && $row->term_id) {
-                $pairs = collect([(object)['program_id'=>$row->program_id, 'term_id'=>$row->term_id]]);
-            }
-        }
-
-        // 3) Insertar faltantes en group_subjects (uno por cada grupo que encaje)
-        foreach ($pairs as $p) {
-            DB::statement('
-                INSERT INTO group_subjects (group_id, subject_id, fyh_creacion, fyh_actualizacion, estado)
-                SELECT g.group_id, ?, NOW(), NULL, 1
-                FROM groups g
-                LEFT JOIN group_subjects gs
-                       ON gs.group_id = g.group_id
-                      AND gs.subject_id = ?
-                WHERE g.program_id = ?
-                  AND g.term_id    = ?
-                  AND gs.group_subject_id IS NULL
-            ', [
-                $subjectId,
-                $subjectId,
-                (int)$p->program_id,
-                (int)$p->term_id,
-            ]);
-        }
-    }
-
 }
