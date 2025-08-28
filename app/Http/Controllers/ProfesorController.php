@@ -126,7 +126,6 @@ class ProfesorController extends Controller
                 ->with('error', 'El profesor no existe o ya fue eliminado.');
         }
 
-        // Áreas únicas desde programs (ej. "Ingeniería", "Administración", etc.)
         $areas = DB::table('programs')
             ->whereNotNull('area')
             ->select('area')
@@ -135,7 +134,6 @@ class ProfesorController extends Controller
             ->pluck('area')
             ->toArray();
 
-        // Programas asignados al profe -> inferimos sus áreas actuales
         $programIds = DB::table('teacher_program_term')
             ->where('teacher_id', $id)
             ->pluck('program_id');
@@ -148,7 +146,6 @@ class ProfesorController extends Controller
             ->pluck('area')
             ->toArray();
 
-        // Horarios actuales del profe
         $horarios = DB::table('teacher_availability')
             ->where('teacher_id', $id)
             ->orderBy('day_of_week')
@@ -183,7 +180,6 @@ class ProfesorController extends Controller
             'clasificacion.in'      => 'Clasificación inválida.',
         ]);
 
-        // Validación extra: pares de horarios y que fin > inicio
         $days  = $request->input('day_of_week', []);
         $starts= $request->input('start_time', []);
         $ends  = $request->input('end_time', []);
@@ -201,18 +197,15 @@ class ProfesorController extends Controller
         try {
             DB::beginTransaction();
 
-            // 1) Actualizar datos del profesor
             $profesor->teacher_name      = $request->teacher_name;
             $profesor->clasificacion     = $request->clasificacion;
             $profesor->fyh_actualizacion = now();
             $profesor->save();
 
-            // 2) Rehacer asociaciones profesor-programa según ÁREAS seleccionadas
             DB::table('teacher_program_term')->where('teacher_id', $id)->delete();
 
             $areasSel = $request->input('areas', []);
             if (!empty($areasSel)) {
-                // programas que pertenecen a las áreas seleccionadas
                 $programsFromAreas = DB::table('programs')
                     ->whereIn('area', $areasSel)
                     ->pluck('program_id')
@@ -234,7 +227,6 @@ class ProfesorController extends Controller
                 }
             }
 
-            // 3) Rehacer disponibilidad (horarios)
             DB::table('teacher_availability')->where('teacher_id', $id)->delete();
             if (!empty($days)) {
                 $rows = [];
@@ -251,7 +243,6 @@ class ProfesorController extends Controller
                 DB::table('teacher_availability')->insert($rows);
             }
 
-            // 4) Auditoría
             ActividadGeneral::registrar('ACTUALIZAR', 'teachers', $profesor->teacher_id, "Actualizó al profesor {$profesor->teacher_name}");
 
             DB::commit();
@@ -349,12 +340,7 @@ class ProfesorController extends Controller
         }
 
         // Materias ya asignadas al profe (para precargar la caja derecha si quieres)
-        $materiasAsignadas = DB::table('teacher_subjects AS ts')
-            ->join('subjects AS s', 's.subject_id', '=', 'ts.subject_id')
-            ->where('ts.teacher_id', $id)
-            ->select('s.subject_id','s.subject_name','s.weekly_hours','ts.group_id')
-            ->orderBy('s.subject_name')
-            ->get();
+        $materiasAsignadas = collect();
 
         return view('profesores.asignar', compact('profesor','grupos','materiasAsignadas'));
     }
@@ -550,7 +536,7 @@ class ProfesorController extends Controller
         }
     }
 
-    /* ====================== HELPERS (clonan tu PHP) ====================== */
+    /* ====================== HELPERS ====================== */
 
     private function cargarDisponibilidadProfesor(int $teacherId): array
     {

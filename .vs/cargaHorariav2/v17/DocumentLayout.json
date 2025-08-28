@@ -3,8 +3,12 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\cargaHorariav2\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Config\\EliminarMateriasController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\Config\\EliminarMateriasController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\ProfesorController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\ProfesorController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\profesores\\asignar.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\profesores\\asignar.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -14,19 +18,32 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 1,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "EliminarMateriasController.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Config\\EliminarMateriasController.php",
-              "RelativeDocumentMoniker": "app\\Http\\Controllers\\Config\\EliminarMateriasController.php",
-              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Config\\EliminarMateriasController.php",
-              "RelativeToolTip": "app\\Http\\Controllers\\Config\\EliminarMateriasController.php",
-              "ViewState": "AgIAAAMAAAAAAAAAAAAAAB0AAAAFAAAAAAAAAA==",
+              "DocumentIndex": 1,
+              "Title": "asignar.blade.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\profesores\\asignar.blade.php",
+              "RelativeDocumentMoniker": "resources\\views\\profesores\\asignar.blade.php",
+              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\profesores\\asignar.blade.php",
+              "RelativeToolTip": "resources\\views\\profesores\\asignar.blade.php",
+              "ViewState": "AgIAAM4AAAAAAAAAAAAkwP4AAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-08-28T19:11:09.017Z",
+              "WhenOpened": "2025-08-28T19:24:13.097Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "ProfesorController.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\ProfesorController.php",
+              "RelativeDocumentMoniker": "app\\Http\\Controllers\\ProfesorController.php",
+              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\ProfesorController.php",
+              "RelativeToolTip": "app\\Http\\Controllers\\ProfesorController.php",
+              "ViewState": "AgIAAD4BAAAAAAAAAAAUwFYBAAAnAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2025-08-28T19:22:33.316Z",
               "EditorCaption": ""
             }
           ]
