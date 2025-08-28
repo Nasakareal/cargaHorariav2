@@ -137,16 +137,21 @@ class ProgramController extends Controller
             ->get(['group_id','group_name','term_id','turn_id']);
 
         // Materias detalladas (por cuatrimestre)
-        $materias = DB::table('program_term_subjects as pts')
-            ->join('subjects as s', 's.subject_id', '=', 'pts.subject_id')
-            ->leftJoin('terms as t', 't.term_id', '=', 'pts.term_id')
-            ->where('pts.program_id', $id)
-            ->orderBy('t.term_name')
-            ->orderBy('s.subject_name')
-            ->get([
-                's.subject_id','s.subject_name','s.weekly_hours',
-                't.term_name as cuatrimestre'
-            ]);
+    $materias = DB::table('program_term_subjects as pts')
+        ->join('subjects as s', 's.subject_id', '=', 'pts.subject_id')
+        ->leftJoin('terms as t', 't.term_id', '=', 'pts.term_id')
+        ->where('pts.program_id', $id)
+        ->select([
+            's.subject_id',
+            's.subject_name',
+            's.weekly_hours',
+            DB::raw('t.term_name as cuatrimestre'),
+        ])
+        ->distinct()
+        ->orderBy('t.term_name')
+        ->orderBy('s.subject_name')
+        ->get();
+
 
         return view('programas.show', [
             'programa'       => $programa,

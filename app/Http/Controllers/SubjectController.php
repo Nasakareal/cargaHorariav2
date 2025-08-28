@@ -16,7 +16,6 @@ class SubjectController extends Controller
     # ===================== INDEX =====================
     public function index()
     {
-        // Subqueries: un solo programa y un solo cuatrimestre por materia (si vienen por la puente)
         $progSub = DB::table('program_term_subjects')
             ->select('subject_id', DB::raw('MIN(program_id) AS program_id'))
             ->groupBy('subject_id');
@@ -26,14 +25,12 @@ class SubjectController extends Controller
             ->groupBy('subject_id');
 
         $materias = DB::table('subjects as s')
-            // Preferimos el program_id directo; si no existe, usamos el de la puente
             ->leftJoinSub($progSub, 'pp', 'pp.subject_id', '=', 's.subject_id')
             ->leftJoin('programs as p_dir', 'p_dir.program_id', '=', 's.program_id')
             ->leftJoin('programs as p_puente', function ($j) {
                 $j->on('p_puente.program_id', '=', 'pp.program_id');
             })
 
-            // Igual para term_id: directo y luego puente
             ->leftJoinSub($termSub, 'tt', 'tt.subject_id', '=', 's.subject_id')
             ->leftJoin('terms as t_dir', 't_dir.term_id', '=', 's.term_id')
             ->leftJoin('terms as t_puente', function ($j) {
@@ -48,10 +45,8 @@ class SubjectController extends Controller
                 's.unidades',
                 's.fyh_creacion',
 
-                // Si hay programa directo úsalo; si no, el de la puente; si tampoco, NULL
                 DB::raw('COALESCE(p_dir.program_name, p_puente.program_name) AS programas'),
 
-                // Igual para cuatrimestre
                 DB::raw('COALESCE(t_dir.term_name, t_puente.term_name) AS cuatrimestres'),
             ])
             ->orderBy('s.subject_name')
@@ -64,7 +59,6 @@ class SubjectController extends Controller
     # ===================== CREATE ====================
     public function create()
     {
-        // catálogos para armar las relaciones programa–cuatrimestre
         $programas = DB::table('programs')->orderBy('program_name')->get(['program_id','program_name']);
         $terms     = DB::table('terms')->orderBy('term_id')->get(['term_id','term_name']);
 
@@ -77,7 +71,6 @@ class SubjectController extends Controller
         $data = $request->validate([
             'subject_name' => [
                 'required', 'string', 'max:255',
-                // Único por (programa, cuatrimestre)
                 Rule::unique('subjects', 'subject_name')
                     ->where(fn($q) => $q->where('program_id', $request->program_id)
                                        ->where('term_id',    $request->term_id)),
@@ -97,7 +90,6 @@ class SubjectController extends Controller
             'unidades.required'     => 'Las unidades son obligatorias.',
         ]);
 
-        // Normaliza espacios en el nombre
         $data['subject_name'] = preg_replace('/\s+/', ' ', trim($data['subject_name']));
         $data['estado']       = $data['estado'] ?? 'ACTIVO';
 
@@ -133,7 +125,7 @@ class SubjectController extends Controller
 public function show($id)
 {
     $materia = DB::table('subjects as s')
-        ->leftJoin('programs as p', 'p.program_id', '=', 's.program_id')   // por si guardas principal
+        ->leftJoin('programs as p', 'p.program_id', '=', 's.program_id')
         ->leftJoin('terms as t',    't.term_id',    '=', 's.term_id')
         ->where('s.subject_id', (int)$id)
         ->select('s.*','p.program_name','t.term_name')
@@ -143,7 +135,6 @@ public function show($id)
         return redirect()->route('materias.index')->with('error','La materia no existe.');
     }
 
-    // Relaciones N–N desde program_term_subjects
     $rel = DB::table('program_term_subjects as pts')
         ->join('programs as p', 'p.program_id', '=', 'pts.program_id')
         ->join('terms as t',    't.term_id',    '=', 'pts.term_id')
@@ -182,7 +173,6 @@ public function show($id)
             return redirect()->route('materias.index')->with('error', 'La materia no existe.');
         }
 
-        // Validación: único por (nombre, programa, cuatrimestre)
         $data = $request->validate([
             'subject_name' => [
                 'required', 'string', 'max:255',
@@ -206,21 +196,45 @@ public function show($id)
             'unidades.required'     => 'Las unidades son obligatorias.',
         ]);
 
-        // Normaliza el nombre
         $data['subject_name'] = preg_replace('/\s+/', ' ', trim($data['subject_name']));
 
         try {
             DB::beginTransaction();
 
+            $oldProgramId = (int) $materia->program_id;
+            $newProgramId = (int) $data['program_id'];
+
+            // 1) Actualiza la materia
             $materia->update([
                 'subject_name'                => $data['subject_name'],
                 'weekly_hours'                => (int) $data['weekly_hours'],
                 'max_consecutive_class_hours' => (int) $data['max_consecutive_class_hours'],
-                'program_id'                  => (int) $data['program_id'],
+                'program_id'                  => $newProgramId,
                 'term_id'                     => (int) $data['term_id'],
                 'unidades'                    => (int) $data['unidades'],
                 'estado'                      => $data['estado'],
             ]);
+
+            // 2) Si cambió de programa, migra sus relaciones del pivot al nuevo programa
+            if ($oldProgramId !== $newProgramId) {
+
+                DB::table('program_term_subjects as pts_old')
+                  ->where('pts_old.subject_id', $materia->subject_id)
+                  ->where('pts_old.program_id', $oldProgramId)
+                  ->whereExists(function ($q) use ($materia, $newProgramId) {
+                      $q->select(DB::raw(1))
+                        ->from('program_term_subjects as pts_new')
+                        ->whereColumn('pts_new.subject_id', 'pts_old.subject_id')
+                        ->whereColumn('pts_new.term_id', 'pts_old.term_id')
+                        ->where('pts_new.program_id', $newProgramId);
+                  })
+                  ->delete();
+
+                DB::table('program_term_subjects')
+                  ->where('subject_id', $materia->subject_id)
+                  ->where('program_id', $oldProgramId)
+                  ->update(['program_id' => $newProgramId]);
+            }
 
             ActividadGeneral::registrar(
                 'ACTUALIZAR',
@@ -254,7 +268,6 @@ public function show($id)
             return redirect()->route('materias.index')->with('error','No tienes permiso para eliminar materias.');
         }
 
-        // No permitir borrar si está en uso
         $enUso = DB::table('teacher_subjects')->where('subject_id', $materia->subject_id)->exists()
               || DB::table('schedule_assignments')->where('subject_id', $materia->subject_id)->exists()
               || DB::table('manual_schedule_assignments')->where('subject_id', $materia->subject_id)->exists();
@@ -285,11 +298,6 @@ public function show($id)
     }
 
     # ------------------- Helpers -------------------
-    /**
-     * Acepta cualquiera de estas formas desde el formulario:
-     *  A) relaciones[] = ["<program_id>|<term_id>", ...]
-     *  B) program_id[] y term_id[] (misma longitud): se interpretan como pares (p[i], t[i]).
-     */
     private function parsePairsFromRequest(Request $request): array
     {
         $pairs = [];

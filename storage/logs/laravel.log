@@ -26016,3 +26016,4 @@
 #2 C:\\wamp64\\www\\cargaHorariav2\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Bootstrap\\HandleExceptions.php(0): Illuminate\\Foundation\\Bootstrap\\HandleExceptions->handleShutdown()
 #3 {main}
 "} 
+[2025-08-27 22:16:12] local.ERROR: Error BD al eliminar materia {"code":"23000","msg":"SQLSTATE[23000]: Integrity constraint violation: 1451 Cannot delete or update a parent row: a foreign key constraint fails (`cargahoraria`.`subject_labs`, CONSTRAINT `fk_subject` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`subject_id`)) (SQL: delete from `subjects` where `subject_id` = 1830)"} 
