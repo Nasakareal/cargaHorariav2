@@ -48,7 +48,11 @@ class SubjectController extends Controller
             ->orderBy('s.subject_name')
             ->get();
 
-        return view('materias.index', compact('materias'));
+        $programas = DB::table('programs')
+            ->orderBy('program_name')
+            ->get(['program_id','program_name']);
+
+        return view('materias.index', compact('materias','programas'));
     }
 
     # ===================== CREATE ====================
@@ -262,7 +266,7 @@ class SubjectController extends Controller
         }
     }
 
-    # ===================== DESTROY ====================
+    # ===================== DESTROY =====================
     public function destroy($id)
     {
         $materia = Subject::where('subject_id', (int)$id)->first();
@@ -274,32 +278,68 @@ class SubjectController extends Controller
             return redirect()->route('materias.index')->with('error','No tienes permiso para eliminar materias.');
         }
 
-        $enUso = DB::table('teacher_subjects')->where('subject_id', $materia->subject_id)->exists()
-              || DB::table('schedule_assignments')->where('subject_id', $materia->subject_id)->exists()
-              || DB::table('manual_schedule_assignments')->where('subject_id', $materia->subject_id)->exists();
-
-        if ($enUso) {
-            return redirect()->route('materias.index')->with('error','No se puede eliminar una materia que ya está asignada.');
-        }
+        $conn   = $materia->getConnectionName() ?: config('database.default');
+        $dbName = DB::connection($conn)->getDatabaseName();
 
         try {
-            DB::beginTransaction();
+            DB::connection($conn)->beginTransaction();
+            DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=0');
 
-            DB::table('program_term_subjects')->where('subject_id', $materia->subject_id)->delete();
-            $materia->delete();
+            // 1) Identifica TODAS las tablas que referencian subjects(subject_id) y borra sus filas
+            $fks = DB::connection($conn)->select("
+                SELECT TABLE_NAME, COLUMN_NAME
+                FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+                WHERE REFERENCED_TABLE_SCHEMA = ?
+                  AND REFERENCED_TABLE_NAME   = 'subjects'
+                  AND REFERENCED_COLUMN_NAME  = 'subject_id'
+            ", [$dbName]);
 
-            ActividadGeneral::registrar('ELIMINAR', 'subjects', $id, "Eliminó materia {$materia->subject_name}");
+            foreach ($fks as $fk) {
+                if (strcasecmp($fk->TABLE_NAME, 'subjects') === 0) { continue; }
+                DB::connection($conn)
+                    ->table($fk->TABLE_NAME)
+                    ->where($fk->COLUMN_NAME, $materia->subject_id)
+                    ->delete();
+            }
 
-            DB::commit();
+            // 2) Tablas conocidas (por si alguna no tuviera FK formal o nombres raros)
+            $extras = [
+                'program_term_subjects',
+                'teacher_subjects',
+                'schedule_assignments',
+                'manual_schedule_assignments',
+                'subject_labs',
+            ];
+            foreach ($extras as $tbl) {
+                try {
+                    DB::connection($conn)->table($tbl)->where('subject_id', $materia->subject_id)->delete();
+                } catch (\Throwable $e) {
+                }
+            }
+
+            // 3) Borra la materia
+            DB::connection($conn)
+                ->table('subjects')
+                ->where('subject_id', $materia->subject_id)
+                ->delete();
+
+            // 4) Bitácora
+            ActividadGeneral::registrar('ELIMINAR', 'subjects', (int)$id, "Eliminó materia {$materia->subject_name}");
+
+            // 🔒 Reactiva FK checks y cierra tx
+            DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=1');
+            DB::connection($conn)->commit();
+
             return redirect()->route('materias.index')->with('success','Materia eliminada correctamente.');
-        } catch (QueryException $e) {
-            DB::rollBack();
-            Log::error('Error BD al eliminar materia', ['code'=>$e->getCode(),'msg'=>$e->getMessage()]);
-            return redirect()->route('materias.index')->with('error','Error de base de datos al eliminar la materia.');
+
         } catch (\Throwable $e) {
-            DB::rollBack();
-            Log::error('Error inesperado al eliminar materia', ['msg'=>$e->getMessage()]);
-            return redirect()->route('materias.index')->with('error','Ocurrió un error inesperado al eliminar la materia.');
+            try { DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=1'); } catch (\Throwable $e2) {}
+            DB::connection($conn)->rollBack();
+            \Log::error('Error al eliminar materia (forzado)', [
+                'subject_id' => (int)$id,
+                'msg'        => $e->getMessage()
+            ]);
+            return redirect()->route('materias.index')->with('error', 'No se pudo eliminar: '.$e->getMessage());
         }
     }
 

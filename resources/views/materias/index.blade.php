@@ -23,6 +23,56 @@
           @endcan
         </div>
 
+        @php use Illuminate\Support\Str; @endphp
+
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+          <div class="dropdown">
+            <button class="btn btn-outline-primary dropdown-toggle" type="button" data-toggle="dropdown" aria-expanded="false">
+              <i class="fa fa-filter mr-1"></i> Programas
+            </button>
+
+            <div class="dropdown-menu p-3" style="min-width:320px; max-height: 360px; overflow:auto;">
+              <div class="input-group input-group-sm mb-2">
+                <div class="input-group-prepend">
+                  <span class="input-group-text"><i class="fa fa-search"></i></span>
+                </div>
+                <input id="buscarProgramas" type="text" class="form-control" placeholder="Buscar programa...">
+              </div>
+
+              <div class="mb-2 d-flex justify-content-between align-items-center">
+                <div class="btn-group btn-group-sm">
+                  <button type="button" class="btn btn-link p-0" id="progSelectAll">Seleccionar todo</button>
+                  <span class="mx-2 text-muted">·</span>
+                  <button type="button" class="btn btn-link p-0" id="progSelectNone">Ninguno</button>
+                  <span class="mx-2 text-muted">·</span>
+                  <button type="button" class="btn btn-link p-0" id="progInvert">Invertir</button>
+                </div>
+                <small class="text-muted" id="progResumen"></small>
+              </div>
+
+              <div id="listaProgramas">
+                @foreach ($programas as $p)
+                  @php $slug = Str::slug($p->program_name ?? 'sin-programa','_'); @endphp
+                  <div class="custom-control custom-checkbox prog-item mb-1">
+                    <input type="checkbox"
+                           class="custom-control-input prog-check"
+                           id="prog_{{ $slug }}"
+                           value="{{ $p->program_name }}"
+                           checked>
+                    <label class="custom-control-label" for="prog_{{ $slug }}">
+                      {{ $p->program_name }}
+                    </label>
+                  </div>
+                @endforeach
+              </div>
+            </div>
+          </div>
+
+          <span class="badge badge-light ml-2" id="progChip">Mostrando: todos</span>
+        </div>
+
+
+
         <div class="card-body">
           <table id="tablaMaterias" class="table table-striped table-bordered table-hover table-sm">
             <thead>
@@ -150,12 +200,10 @@ $(function () {
   }
 
   const dt = $("#tablaMaterias").DataTable({
-    // mantenemos tu UX: buscador + 10 por página
     pageLength: 10,
     lengthMenu: [[5,10,25,50,100,-1],[5,10,25,50,100,'Todas']],
     language: { url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json' },
     responsive: true, lengthChange: true, autoWidth: false,
-    // añadimos los botones al layout
     dom: 'Blfrtip',
     buttons: [
       {
@@ -167,7 +215,6 @@ $(function () {
             exportOptions:{
               columns: ':not(.no-export)',
               stripHtml: true,
-              // SOLO lo filtrado y la página actual
               modifier: { search:'applied', order:'applied', page:'current' },
               format: { body:limpiar, header:limpiar }
             }
@@ -226,6 +273,75 @@ $(function () {
 
   // ubicar contenedor de botones como te gusta
   dt.buttons().container().appendTo('#tablaMaterias_wrapper .col-md-6:eq(0)');
+
+  /* ========= Filtro bonito por Programas (checklist en dropdown) ========= */
+
+  const $lista = $('#listaProgramas');
+  const $checks = () => $lista.find('.prog-check');
+  const $buscar = $('#buscarProgramas');
+  const $resumen = $('#progResumen');
+  const $chip = $('#progChip');
+
+  // Conjunto de EXCLUIDOS (desmarcados). Por defecto vacío => se muestran todos.
+  const excluidos = new Set();
+
+  function totalProgramas(){ return $checks().length; }
+  function seleccionados(){ return $checks().filter(':checked').length; }
+
+  // Actualiza chip/resumen
+  function refrescarResumen(){
+    const sel = seleccionados();
+    const tot = totalProgramas();
+    $resumen.text(`Mostrando ${sel}/${tot}`);
+    $chip.text(sel === tot ? 'Mostrando: todos' : `Mostrando: ${sel}/${tot}`);
+  }
+
+  // Búsqueda dentro del dropdown
+  $buscar.on('input', function(){
+    const q = (this.value || '').toLowerCase();
+    $lista.find('.prog-item').each(function(){
+      const txt = $(this).text().toLowerCase();
+      $(this).toggle(txt.includes(q));
+    });
+  });
+
+  // Botones rápidos
+  $('#progSelectAll').on('click', function(){
+    $checks().prop('checked', true).trigger('change');
+  });
+  $('#progSelectNone').on('click', function(){
+    $checks().prop('checked', false).trigger('change');
+  });
+  $('#progInvert').on('click', function(){
+    $checks().each(function(){
+      $(this).prop('checked', !$(this).prop('checked'));
+    }).trigger('change');
+  });
+
+  // Filtro DataTables con función personalizada (exclusión)
+  $.fn.dataTable.ext.search.push(function(settings, data){
+    // Aplica solo a esta tabla
+    if (settings.nTable && settings.nTable.id !== 'tablaMaterias') return true;
+
+    const programa = (data[4] || '').trim(); // columna Programa
+    // Si el programa está desmarcado => se excluye
+    return !excluidos.has(programa);
+  });
+
+  // Manejo de checks
+  $lista.on('change', '.prog-check', function(){
+    const val = (this.value || '').trim();
+    if (!val) return;
+
+    if (this.checked) { excluidos.delete(val); }
+    else { excluidos.add(val); }
+
+    refrescarResumen();
+    dt.draw();
+  });
+
+  // Estado inicial: todos marcados -> sin exclusiones
+  refrescarResumen();
 });
 </script>
 @endsection
