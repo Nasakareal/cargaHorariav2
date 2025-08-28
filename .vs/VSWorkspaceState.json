@@ -6,7 +6,10 @@
     "\\app\\Http\\Controllers",
     "\\app\\Http\\Requests",
     "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\materias",
     "\\routes"
   ],
+  "SelectedNode": "\\resources\\views\\materias\\index.blade.php",
   "PreviewInSolutionExplorer": false
 }

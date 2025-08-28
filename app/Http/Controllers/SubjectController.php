@@ -254,7 +254,7 @@ class SubjectController extends Controller
             );
 
             DB::commit();
-            return back(2)->with('success', 'Materia actualizada correctamente.');
+            return redirect()->route('materias.index')->with('success', 'Materia actualizada correctamente.');
         } catch (\Illuminate\Database\QueryException $e) {
             DB::rollBack();
             Log::error('Error BD al actualizar materia', ['code'=>$e->getCode(),'msg'=>$e->getMessage()]);
