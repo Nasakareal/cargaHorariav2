@@ -4,11 +4,12 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\app\\Models",
+    "\\app\\Http\\Controllers\\Api",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\perfil"
+    "\\resources\\views\\profesores",
+    "\\routes"
   ],
-  "SelectedNode": "\\app\\Models\\User.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Api\\TeacherSubjectApiController.php",
   "PreviewInSolutionExplorer": false
 }

@@ -5,29 +5,29 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\Rule;
-use App\Models\Teacher;
-use App\Models\Subject;
-use App\Models\TeacherSubject;
+use Illuminate\Database\QueryException;
 use App\Models\ActividadGeneral;
 
 class TeacherSubjectApiController extends Controller
 {
-    /**
-     * Listar materias asignadas a un profesor (opcional ?group_id=)
-     */
-    public function index(Request $request, int $profesor_id)
+    /* ========== GET /v1/profesores/{profesor_id}/materias ==========
+       Devuelve:
+       - materias_asignadas (del profe)
+       - grupos_disponibles (según rol del usuario autenticado)
+    */
+    public function index(Request $request, $profesor_id)
     {
-        $teacher = DB::table('teachers')->where('teacher_id', $profesor_id)->first();
-        if (!$teacher) {
-            return response()->json(['message' => 'Profesor no encontrado'], 404);
-        }
+        $profesor = DB::table('teachers')->where('teacher_id', (int)$profesor_id)->first();
+        if (!$profesor) return response()->json(['message'=>'Profesor no encontrado'], 404);
 
-        $q = DB::table('teacher_subjects as ts')
-            ->join('subjects as s', 's.subject_id', '=', 'ts.subject_id')
+        // Materias ya asignadas al profe
+        $materiasAsignadas = DB::table('teacher_subjects AS ts')
+            ->join('subjects AS s', 's.subject_id', '=', 'ts.subject_id')
             ->leftJoin('groups as g', 'g.group_id', '=', 'ts.group_id')
-            ->where('ts.teacher_id', $profesor_id)
+            ->leftJoin('programs as p', 'p.program_id', '=', 'g.program_id')
+            ->where('ts.teacher_id', (int)$profesor_id)
             ->select([
                 'ts.teacher_subject_id',
                 's.subject_id',
@@ -35,86 +35,71 @@ class TeacherSubjectApiController extends Controller
                 's.weekly_hours',
                 'ts.group_id',
                 'g.group_name',
+                'p.program_name',
+                'p.area',
             ])
-            ->orderBy('s.subject_name');
+            ->orderBy('s.subject_name')
+            ->get();
 
-        if ($request->filled('group_id')) {
-            $q->where('ts.group_id', (int)$request->query('group_id'));
-        }
-
-        $asignaciones = $q->get();
-
-        $horas = DB::table('teacher_subjects as ts')
-            ->join('subjects as s', 's.subject_id', '=', 'ts.subject_id')
-            ->where('ts.teacher_id', $profesor_id)
-            ->sum('s.weekly_hours');
+        // Grupos visibles por rol
+        $grupos = $this->gruposVisiblesPorUsuario($request->user());
 
         return response()->json([
-            'teacher' => [
-                'teacher_id' => $teacher->teacher_id,
-                'teacher_name' => $teacher->teacher_name,
-                'clasificacion' => $teacher->clasificacion ?? null,
-                'hours' => (int)($horas ?? 0),
-            ],
-            'items' => $asignaciones,
+            'profesor'            => $profesor,
+            'materias_asignadas'  => $materiasAsignadas,
+            'grupos_disponibles'  => $grupos,
         ]);
     }
 
-    /**
-     * Asignar materias a uno o varios grupos para un profesor (bulk OK).
-     * Cuerpo aceptado (uno u otro, ambos válidos):
-     *  - { "materia_ids":[...], "grupo_ids":[...] }
-     *  - { "materias_asignadas":[...], "grupos_asignados":[...] }  // espejo del web
-     */
-    public function store(Request $request, int $profesor_id)
+    /* ========== POST /v1/profesores/{profesor_id}/materias ==========
+       Cuerpo:
+       - materias_asignadas: int[]
+       - grupos_asignados:   int[]
+    */
+    public function store(Request $request, $profesor_id)
     {
-        $teacher = DB::table('teachers')->where('teacher_id', $profesor_id)->first();
-        if (!$teacher) {
-            return response()->json(['message' => 'Profesor no encontrado'], 404);
+        $user = $request->user();
+        if (!$user || !$user->can('asignar materias')) {
+            return response()->json(['message' => 'Sin permiso para asignar materias'], 403);
         }
 
-        // Acepta dos nombres de arrays (compatibles con el web)
-        $materiaIds = $request->input('materia_ids', $request->input('materias_asignadas', []));
-        $grupoIds   = $request->input('grupo_ids',   $request->input('grupos_asignados',   []));
+        $profesor = DB::table('teachers')->where('teacher_id', (int)$profesor_id)->first();
+        if (!$profesor) return response()->json(['message'=>'Profesor no encontrado'], 404);
 
-        $data = $request->validate([
-            'materia_ids'        => 'nullable|array',
-            'materia_ids.*'      => 'integer',
+        $request->validate([
             'materias_asignadas' => 'nullable|array',
             'materias_asignadas.*' => 'integer',
-
-            'grupo_ids'          => 'required_without:grupos_asignados|array|min:1',
-            'grupo_ids.*'        => 'integer',
-            'grupos_asignados'   => 'required_without:grupo_ids|array|min:1',
+            'grupos_asignados'   => 'required|array|min:1',
             'grupos_asignados.*' => 'integer',
         ], [
-            'grupo_ids.required_without'        => 'Seleccione al menos un grupo.',
-            'grupos_asignados.required_without' => 'Seleccione al menos un grupo.',
+            'grupos_asignados.required' => 'Seleccione al menos un grupo.',
         ]);
 
-        $materiaIds = array_values(array_filter((array)$materiaIds, 'is_numeric'));
-        $grupoIds   = array_values(array_filter((array)$grupoIds,   'is_numeric'));
+        $materiaIds = $request->input('materias_asignadas', []);
+        $grupoIds   = array_values(array_filter($request->input('grupos_asignados', []), 'is_numeric'));
 
         if (empty($grupoIds)) {
-            return response()->json(['message' => 'Debe seleccionar al menos un grupo'], 422);
+            return response()->json(['message' => 'Faltan datos para asignar'], 422);
         }
 
-        // Config del sistema
+        // Filtro por rol (subdirector: solo su(s) área(s))
+        $permitidos = $this->idsGruposVisibles($user);
+        foreach ($grupoIds as $gid) {
+            if (!in_array((int)$gid, $permitidos, true)) {
+                return response()->json(['message' => "No tienes permiso para asignar en el grupo {$gid}"], 403);
+            }
+        }
+
+        // Config horarios
         $horarios_disponibles = config('horarios.disponibles', []);
         $dias_semana          = config('horarios.dias_semana', []);
-        if (empty($horarios_disponibles) || empty($dias_semana)) {
-            return response()->json([
-                'message' => 'No hay configuración de días/horarios; revisa config/horarios.php'
-            ], 500);
-        }
 
         DB::beginTransaction();
-
         try {
             // Disponibilidad del profe
-            $teacherAvailability = $this->cargarDisponibilidadProfesor($profesor_id);
+            $teacherAvailability = $this->cargarDisponibilidadProfesor((int)$profesor_id);
 
-            // Mapa de horas por materia
+            // horas por materia
             $mapHours = [];
             if (!empty($materiaIds)) {
                 $rows = DB::table('subjects')
@@ -125,7 +110,6 @@ class TeacherSubjectApiController extends Controller
             }
 
             $errores = [];
-            $creados = 0;
 
             foreach ($grupoIds as $g) {
                 foreach ($materiaIds as $m) {
@@ -136,155 +120,146 @@ class TeacherSubjectApiController extends Controller
                     }
 
                     $ok = $this->asignarMateriaConBloquesYAparteSiSobra(
-                        $profesor_id,
-                        (int) $m,
-                        (int) $g,
-                        $wh,
-                        $errores,
-                        $horarios_disponibles,
-                        $dias_semana,
-                        $teacherAvailability
+                        (int)$profesor_id, (int)$m, (int)$g, $wh, $errores,
+                        $horarios_disponibles, $dias_semana, $teacherAvailability
                     );
 
-                    if (!$ok) {
-                        continue;
-                    }
+                    if (!$ok) continue;
 
-                    // Pivot teacher_subjects (si no existe)
+                    // relación teacher_subjects (si no existe)
                     $exists = DB::table('teacher_subjects')
-                        ->where('teacher_id', $profesor_id)
-                        ->where('subject_id', $m)
-                        ->where('group_id',   $g)
+                        ->where('teacher_id', (int)$profesor_id)
+                        ->where('subject_id', (int)$m)
+                        ->where('group_id',   (int)$g)
                         ->exists();
 
                     if (!$exists) {
                         DB::table('teacher_subjects')->insert([
-                            'teacher_id'       => $profesor_id,
-                            'subject_id'       => $m,
-                            'group_id'         => $g,
+                            'teacher_id'       => (int)$profesor_id,
+                            'subject_id'       => (int)$m,
+                            'group_id'         => (int)$g,
                             'fyh_creacion'     => now(),
                             'fyh_actualizacion'=> now(),
-                            'estado'           => 'ACTIVO',
                         ]);
-                        $creados++;
                     }
                 }
             }
 
             if (!empty($errores)) {
                 DB::rollBack();
-                return response()->json([
-                    'message' => 'No se pudo completar la asignación.',
-                    'errors'  => $errores,
-                ], 409);
+                return response()->json(['message'=>'Validación', 'errors'=>$errores], 422);
             }
 
-            // Actualizar total de horas del profe
+            // actualizar total de horas del profe
             $total = DB::table('teacher_subjects AS ts')
                 ->join('subjects AS s', 's.subject_id', '=', 'ts.subject_id')
-                ->where('ts.teacher_id', $profesor_id)
+                ->where('ts.teacher_id', (int)$profesor_id)
                 ->sum('s.weekly_hours');
 
             DB::table('teachers')
-                ->where('teacher_id', $profesor_id)
+                ->where('teacher_id', (int)$profesor_id)
                 ->update([
-                    'hours'             => (int)($total ?? 0),
+                    'hours'             => (int)$total,
                     'fyh_actualizacion' => now(),
                 ]);
 
-            ActividadGeneral::registrar('ASIGNAR', 'teacher_subjects', $profesor_id, "API asignó materias/grupos al profe {$profesor_id}");
+            ActividadGeneral::registrar('ASIGNAR', 'teacher_subjects', (int)$profesor_id, "Asignó materias/grupos al profe {$profesor_id}");
 
             DB::commit();
-
-            return response()->json([
-                'message' => 'Asignación exitosa.',
-                'created' => $creados,
-                'teacher_hours' => (int)$total,
-            ], 201);
-        } catch (\Illuminate\Database\QueryException $e) {
+            return response()->json(['ok' => true, 'message' => 'Asignación exitosa']);
+        } catch (QueryException $e) {
             DB::rollBack();
-            Log::error('ERROR BD al asignar materias (API)', ['code'=>$e->getCode(),'msg'=>$e->getMessage()]);
-            return response()->json(['message' => 'Error de base de datos al asignar materias'], 500);
+            Log::error('Error BD al asignar materias', ['code'=>$e->getCode(),'msg'=>$e->getMessage()]);
+            return response()->json(['message'=>'Error de base de datos al asignar materias'], 500);
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('ERROR inesperado al asignar materias (API)', ['msg'=>$e->getMessage()]);
-            return response()->json(['message' => 'Error inesperado al asignar materias'], 500);
+            Log::error('Error inesperado al asignar materias', ['msg'=>$e->getMessage()]);
+            return response()->json(['message'=>'Ocurrió un error inesperado al asignar materias'], 500);
         }
     }
 
-    /**
-     * Eliminar una asignación concreta (pivot).
-     * NOTA: dejamos los bloques en schedule_assignments pero liberamos al profesor (teacher_id = NULL)
-     * para que el slot quede disponible.
-     */
-    public function destroy(Request $request, int $profesor_id, int $teacher_subject_id)
+    /* ========== DELETE /v1/profesores/{profesor_id}/materias/{teacher_subject_id} ========== */
+    public function destroy(Request $request, $profesor_id, $teacher_subject_id)
     {
-        $row = DB::table('teacher_subjects')->where('teacher_subject_id', $teacher_subject_id)->first();
-        if (!$row || (int)$row->teacher_id !== (int)$profesor_id) {
-            return response()->json(['message' => 'Asignación no encontrada'], 404);
+        $user = $request->user();
+        if (!$user || !$user->can('asignar materias')) {
+            return response()->json(['message' => 'Sin permiso'], 403);
+        }
+
+        $rel = DB::table('teacher_subjects')
+            ->where('teacher_subject_id', (int)$teacher_subject_id)
+            ->where('teacher_id', (int)$profesor_id)
+            ->first();
+
+        if (!$rel) {
+            return response()->json(['message' => 'Relación no encontrada'], 404);
         }
 
         DB::beginTransaction();
         try {
-            // Liberar bloques oficiales asignados a este profe para ese subject+group
+            // Liberar bloques en schedule_assignments (dejar teacher_id en null)
             DB::table('schedule_assignments')
-                ->where('teacher_id', $profesor_id)
-                ->where('subject_id', $row->subject_id)
-                ->where('group_id',   $row->group_id)
+                ->where('teacher_id', (int)$profesor_id)
+                ->where('subject_id', (int)$rel->subject_id)
+                ->where('group_id',   (int)$rel->group_id)
                 ->update([
                     'teacher_id'       => null,
                     'fyh_actualizacion'=> now(),
                 ]);
 
-            // Borrar pivot
-            DB::table('teacher_subjects')->where('teacher_subject_id', $teacher_subject_id)->delete();
+            DB::table('teacher_subjects')
+                ->where('teacher_subject_id', (int)$teacher_subject_id)
+                ->delete();
 
-            // Recalcular horas
+            // Actualizar horas del profe
             $total = DB::table('teacher_subjects AS ts')
                 ->join('subjects AS s', 's.subject_id', '=', 'ts.subject_id')
-                ->where('ts.teacher_id', $profesor_id)
+                ->where('ts.teacher_id', (int)$profesor_id)
                 ->sum('s.weekly_hours');
 
             DB::table('teachers')
-                ->where('teacher_id', $profesor_id)
+                ->where('teacher_id', (int)$profesor_id)
                 ->update([
-                    'hours'             => (int)($total ?? 0),
+                    'hours'             => (int)$total,
                     'fyh_actualizacion' => now(),
                 ]);
 
-            ActividadGeneral::registrar('ELIMINAR', 'teacher_subjects', $teacher_subject_id, "API eliminó asignación del profe {$profesor_id}");
-
             DB::commit();
-            return response()->json([
-                'message' => 'Asignación eliminada.',
-                'teacher_hours' => (int)$total,
-            ]);
-        } catch (\Illuminate\Database\QueryException $e) {
+            return response()->json(['ok'=>true]);
+        } catch (QueryException $e) {
             DB::rollBack();
-            Log::error('ERROR BD al eliminar asignación (API)', ['code'=>$e->getCode(),'msg'=>$e->getMessage()]);
-            return response()->json(['message' => 'Error de base de datos al eliminar la asignación'], 500);
+            Log::error('Error BD al eliminar relación teacher_subject', ['code'=>$e->getCode(),'msg'=>$e->getMessage()]);
+            return response()->json(['message'=>'Error de base de datos al eliminar la asignación'], 500);
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('ERROR inesperado al eliminar asignación (API)', ['msg'=>$e->getMessage()]);
-            return response()->json(['message' => 'Error inesperado al eliminar la asignación'], 500);
+            Log::error('Error inesperado al eliminar relación teacher_subject', ['msg'=>$e->getMessage()]);
+            return response()->json(['message'=>'Ocurrió un error inesperado al eliminar la asignación'], 500);
         }
     }
 
-    /**
-     * AJAX (API): materias por grupo → JSON
-     * Body: { "group_id": <int> }
-     */
-    public function materiasPorGrupo(Request $request, int $profesor_id)
+    /* ========== POST /v1/profesores/{profesor_id}/ajax/materias-por-grupo ==========
+       Entrada: { group_id: int }
+       Salida:  [{subject_id, subject_name, weekly_hours}] (JSON)
+       Con filtro de área para Subdirector.
+    */
+    public function materiasPorGrupo(Request $request, $profesor_id)
     {
-        $groupId = (int) $request->input('group_id');
-        if (!$groupId) {
-            return response()->json(['items' => []]);
+        $user = $request->user();
+        if (!$user || !$user->can('asignar materias')) {
+            return response()->json(['message' => 'Sin permiso'], 403);
+        }
+
+        $groupId = (int) ($request->input('group_id'));
+        if (!$groupId) return response()->json([]);
+
+        // Check de área según rol
+        $permitidos = $this->idsGruposVisibles($user);
+        if (!in_array($groupId, $permitidos, true)) {
+            return response()->json(['message' => 'No tienes permiso para ver ese grupo'], 403);
         }
 
         $group = DB::table('groups')->where('group_id', $groupId)->first();
-        if (!$group) {
-            return response()->json(['items' => []]);
-        }
+        if (!$group) return response()->json([]);
 
         $materias = DB::table('program_term_subjects AS pts')
             ->join('subjects AS s', 's.subject_id', '=', 'pts.subject_id')
@@ -295,23 +270,58 @@ class TeacherSubjectApiController extends Controller
             ->orderBy('s.subject_name')
             ->get();
 
-        return response()->json(['items' => $materias]);
+        return response()->json($materias);
     }
 
-    /**
-     * AJAX (API): total de horas actuales del profe
-     */
-    public function horasProfesor(Request $request, int $profesor_id)
+    /* ========== POST /v1/profesores/{profesor_id}/ajax/horas ==========
+       Devuelve { total: int }
+    */
+    public function horasProfesor(Request $request, $profesor_id)
     {
         $total = DB::table('teacher_subjects AS ts')
             ->join('subjects AS s', 's.subject_id', '=', 'ts.subject_id')
             ->where('ts.teacher_id', (int)$profesor_id)
             ->sum('s.weekly_hours');
 
-        return response()->json(['hours' => (int)($total ?? 0)]);
+        return response()->json(['total' => (int)($total ?? 0)]);
     }
 
-    /* ====================== HELPERS (mismo flujo del web) ====================== */
+    /* ====================== HELPERS (clonan tu PHP) ====================== */
+
+    private function gruposVisiblesPorUsuario($user)
+    {
+        $isAdmin        = $user?->hasRole('Administrador') ?? false;
+        $isSubdirector  = $user?->hasRole('Subdirector')   ?? false;
+
+        $q = DB::table('groups as g')
+            ->join('programs as p', 'p.program_id', '=', 'g.program_id')
+            ->select([
+                'g.group_id','g.group_name','g.program_id','g.term_id','g.turn_id',
+                'p.program_name','p.area'
+            ])
+            ->orderBy('g.group_name');
+
+        if ($isAdmin) {
+            return $q->get();
+        }
+
+        if ($isSubdirector) {
+            $areas = collect(explode(',', (string)($user->area ?? '')))
+                ->map(fn($a)=>trim($a))->filter()->values()->all();
+
+            if (empty($areas)) return collect([]);
+
+            return $q->whereIn('p.area', $areas)->get();
+        }
+
+        // Otros roles: por ahora no ven nada para asignación
+        return collect([]);
+    }
+
+    private function idsGruposVisibles($user): array
+    {
+        return $this->gruposVisiblesPorUsuario($user)->pluck('group_id')->map(fn($x)=>(int)$x)->all();
+    }
 
     private function cargarDisponibilidadProfesor(int $teacherId): array
     {
@@ -390,7 +400,6 @@ class TeacherSubjectApiController extends Controller
             if (!$this->profesorEstaDisponible($availability, $dia, $s, $e)) return false;
             if (!$this->teacherLibreEnHorario($teacherId, $dia, $s, $e))   return false;
 
-            // evitar duplicado exacto
             $exists = DB::table('schedule_assignments')
                 ->where('subject_id', $subjectId)
                 ->where('group_id',   $groupId)
@@ -527,7 +536,6 @@ class TeacherSubjectApiController extends Controller
         array $dias_semana,
         array $availability
     ) {
-        // Info del grupo: aula asignada y turno
         $gi = DB::table('groups')->where('group_id', $groupId)->first(['classroom_assigned','turn_id']);
         if (!$gi) {
             $errores[] = "No existe grupo $groupId";
@@ -571,7 +579,7 @@ class TeacherSubjectApiController extends Controller
         }
         if ($weeklyHours <= 0) return true;
 
-        // 3) completar huecos de 1h respetando reglas y evitando duplicar día si hubo manual
+        // 3) completar huecos de 1h
         $diasTurno = $dias_semana[$turno];
         $dc = count($diasTurno);
         $i = 0;
@@ -595,12 +603,9 @@ class TeacherSubjectApiController extends Controller
             }
 
             $slots = $horarios_disponibles[$turno][$dia];
-            if (isset($slots['start'])) {
-                $slots = [$slots]; // normaliza
-            }
+            if (isset($slots['start'])) $slots = [$slots];
 
             $hueco = false;
-
             foreach ($slots as $slot) {
                 $ini = strtotime($slot['start']);
                 $fin = strtotime($slot['end']);
