@@ -30,13 +30,11 @@ class SubjectController extends Controller
             ->leftJoin('programs as p_puente', function ($j) {
                 $j->on('p_puente.program_id', '=', 'pp.program_id');
             })
-
             ->leftJoinSub($termSub, 'tt', 'tt.subject_id', '=', 's.subject_id')
             ->leftJoin('terms as t_dir', 't_dir.term_id', '=', 's.term_id')
             ->leftJoin('terms as t_puente', function ($j) {
                 $j->on('t_puente.term_id', '=', 'tt.term_id');
             })
-
             ->select([
                 's.subject_id',
                 's.subject_name',
@@ -44,9 +42,7 @@ class SubjectController extends Controller
                 's.max_consecutive_class_hours',
                 's.unidades',
                 's.fyh_creacion',
-
                 DB::raw('COALESCE(p_dir.program_name, p_puente.program_name) AS programas'),
-
                 DB::raw('COALESCE(t_dir.term_name, t_puente.term_name) AS cuatrimestres'),
             ])
             ->orderBy('s.subject_name')
@@ -54,7 +50,6 @@ class SubjectController extends Controller
 
         return view('materias.index', compact('materias'));
     }
-
 
     # ===================== CREATE ====================
     public function create()
@@ -80,7 +75,6 @@ class SubjectController extends Controller
             'program_id'                  => 'required|integer|exists:programs,program_id',
             'term_id'                     => 'required|integer|exists:terms,term_id',
             'unidades'                    => 'required|integer|min:1',
-            'estado'                      => 'nullable|in:ACTIVO,INACTIVO',
         ], [
             'subject_name.required' => 'El nombre de la materia es obligatorio.',
             'subject_name.unique'   => 'Ya existe una materia con ese nombre en el mismo programa y cuatrimestre.',
@@ -91,7 +85,6 @@ class SubjectController extends Controller
         ]);
 
         $data['subject_name'] = preg_replace('/\s+/', ' ', trim($data['subject_name']));
-        $data['estado']       = $data['estado'] ?? 'ACTIVO';
 
         try {
             DB::beginTransaction();
@@ -103,8 +96,17 @@ class SubjectController extends Controller
                 'program_id'                  => (int) $data['program_id'],
                 'term_id'                     => (int) $data['term_id'],
                 'unidades'                    => (int) $data['unidades'],
-                'estado'                      => $data['estado'],
+                'estado'                      => '1',
             ]);
+
+            DB::table('program_term_subjects')->updateOrInsert(
+                [
+                    'program_id' => (int) $data['program_id'],
+                    'term_id'    => (int) $data['term_id'],
+                    'subject_id' => (int) $materia->subject_id,
+                ],
+                []
+            );
 
             ActividadGeneral::registrar('CREAR', 'subjects', $materia->subject_id, "Creó materia {$materia->subject_name}");
 
@@ -122,29 +124,29 @@ class SubjectController extends Controller
     }
 
     # ====================== SHOW ======================
-public function show($id)
-{
-    $materia = DB::table('subjects as s')
-        ->leftJoin('programs as p', 'p.program_id', '=', 's.program_id')
-        ->leftJoin('terms as t',    't.term_id',    '=', 's.term_id')
-        ->where('s.subject_id', (int)$id)
-        ->select('s.*','p.program_name','t.term_name')
-        ->first();
+    public function show($id)
+    {
+        $materia = DB::table('subjects as s')
+            ->leftJoin('programs as p', 'p.program_id', '=', 's.program_id')
+            ->leftJoin('terms as t',    't.term_id',    '=', 's.term_id')
+            ->where('s.subject_id', (int)$id)
+            ->select('s.*','p.program_name','t.term_name')
+            ->first();
 
-    if (!$materia) {
-        return redirect()->route('materias.index')->with('error','La materia no existe.');
+        if (!$materia) {
+            return redirect()->route('materias.index')->with('error','La materia no existe.');
+        }
+
+        $rel = DB::table('program_term_subjects as pts')
+            ->join('programs as p', 'p.program_id', '=', 'pts.program_id')
+            ->join('terms as t',    't.term_id',    '=', 'pts.term_id')
+            ->where('pts.subject_id', (int)$id)
+            ->orderBy('p.program_name')
+            ->orderBy('t.term_id')
+            ->get(['p.program_name','t.term_name']);
+
+        return view('materias.show', compact('materia','rel'));
     }
-
-    $rel = DB::table('program_term_subjects as pts')
-        ->join('programs as p', 'p.program_id', '=', 'pts.program_id')
-        ->join('terms as t',    't.term_id',    '=', 'pts.term_id')
-        ->where('pts.subject_id', (int)$id)
-        ->orderBy('p.program_name')
-        ->orderBy('t.term_id')
-        ->get(['p.program_name','t.term_name']);
-
-    return view('materias.show', compact('materia','rel'));
-}
 
     # ====================== EDIT ======================
     public function edit($id)
@@ -186,7 +188,6 @@ public function show($id)
             'program_id'                  => 'required|integer|exists:programs,program_id',
             'term_id'                     => 'required|integer|exists:terms,term_id',
             'unidades'                    => 'required|integer|min:1',
-            'estado'                      => 'required|in:ACTIVO,INACTIVO',
         ], [
             'subject_name.required' => 'El nombre de la materia es obligatorio.',
             'subject_name.unique'   => 'Ya existe una materia con ese nombre en el mismo programa y cuatrimestre.',
@@ -203,8 +204,6 @@ public function show($id)
 
             $oldProgramId = (int) $materia->program_id;
             $newProgramId = (int) $data['program_id'];
-
-            // 1) Actualiza la materia
             $materia->update([
                 'subject_name'                => $data['subject_name'],
                 'weekly_hours'                => (int) $data['weekly_hours'],
@@ -212,12 +211,10 @@ public function show($id)
                 'program_id'                  => $newProgramId,
                 'term_id'                     => (int) $data['term_id'],
                 'unidades'                    => (int) $data['unidades'],
-                'estado'                      => $data['estado'],
+                'estado'                      => '1',
             ]);
 
-            // 2) Si cambió de programa, migra sus relaciones del pivot al nuevo programa
             if ($oldProgramId !== $newProgramId) {
-
                 DB::table('program_term_subjects as pts_old')
                   ->where('pts_old.subject_id', $materia->subject_id)
                   ->where('pts_old.program_id', $oldProgramId)
@@ -235,6 +232,15 @@ public function show($id)
                   ->where('program_id', $oldProgramId)
                   ->update(['program_id' => $newProgramId]);
             }
+
+            DB::table('program_term_subjects')->updateOrInsert(
+                [
+                    'subject_id' => (int) $materia->subject_id,
+                    'term_id'    => (int) $data['term_id'],
+                    'program_id' => $newProgramId,
+                ],
+                []
+            );
 
             ActividadGeneral::registrar(
                 'ACTUALIZAR',
@@ -302,7 +308,6 @@ public function show($id)
     {
         $pairs = [];
 
-        // A) relaciones = ["3|1","5|2",...]
         if (is_array($request->relaciones) && count($request->relaciones)) {
             foreach ($request->relaciones as $pair) {
                 [$p,$t] = array_pad(explode('|', (string)$pair, 2), 2, null);
@@ -311,7 +316,6 @@ public function show($id)
             return $pairs;
         }
 
-        // B) program_id[] + term_id[] con misma longitud
         $prog = (array) $request->program_id;
         $term = (array) $request->term_id;
         if (count($prog) === count($term)) {

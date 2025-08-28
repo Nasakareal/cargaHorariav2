@@ -242,22 +242,46 @@ class ProgramController extends Controller
                 ->with('error', 'No tienes permiso para eliminar programas.');
         }
 
-        // Reglas: no eliminar si tiene grupos o materias relacionadas
-        $tieneGrupos   = DB::table('groups')->where('program_id', $id)->exists();
-        $tieneMaterias = DB::table('program_term_subjects')->where('program_id', $id)->exists();
-
-        if ($tieneGrupos || $tieneMaterias) {
+        // ÚNICA REGLA: NO borrar si tiene materias propias en `subjects`
+        $tieneMateriasPropias = DB::table('subjects')->where('program_id', $id)->exists();
+        if ($tieneMateriasPropias) {
             return redirect()->route('programas.index')
-                ->with('error', 'No se puede eliminar: este programa tiene grupos o materias relacionadas.');
+                ->with('error', 'No se puede eliminar: el programa aún tiene materias registradas en subjects.');
         }
 
         try {
-            ActividadGeneral::registrar('ELIMINAR', 'programs', $id, "Eliminó el programa {$programa->program_name}");
-            DB::table('programs')->where('program_id', $id)->delete();
+            DB::transaction(function () use ($id, $programa) {
+                // 1) Limpia cualquier resto directo del programa (aunque no debería haber)
+                DB::table('program_term_subjects')->where('program_id', $id)->delete();
+                DB::table('teacher_program_term')->where('program_id', $id)->delete();
+                DB::table('building_programs')->where('program_id', $id)->delete();
+
+                // 2) Borra TODO lo que cuelga de los grupos del programa (si hay)
+                $groupIds = DB::table('groups')->where('program_id', $id)->pluck('group_id');
+
+                if ($groupIds->isNotEmpty()) {
+                    // Dependencias por group_id
+                    DB::table('group_schedule_teacher')->whereIn('group_id', $groupIds)->delete();
+                    DB::table('schedule_assignments')->whereIn('group_id', $groupIds)->delete();
+                    DB::table('manual_schedule_assignments')->whereIn('group_id', $groupIds)->delete();
+                    DB::table('teacher_groups')->whereIn('group_id', $groupIds)->delete();
+                    DB::table('educational_levels')->whereIn('group_id', $groupIds)->delete();
+                    DB::table('group_subjects')->whereIn('group_id', $groupIds)->delete();
+
+                    // Finalmente borra los grupos
+                    DB::table('groups')->whereIn('group_id', $groupIds)->delete();
+                }
+
+                // 3) Borra el programa
+                DB::table('programs')->where('program_id', $id)->delete();
+
+                // Log
+                ActividadGeneral::registrar('ELIMINAR', 'programs', $id, "Eliminó el programa {$programa->program_name}");
+            });
 
             return redirect()->route('programas.index')
                 ->with('success', 'Programa eliminado correctamente.');
-        } catch (QueryException $e) {
+        } catch (\Illuminate\Database\QueryException $e) {
             Log::error('Error BD al eliminar programa', ['code'=>$e->getCode(),'msg'=>$e->getMessage()]);
             return redirect()->route('programas.index')
                 ->with('error', 'Error de base de datos al eliminar el programa.');
@@ -267,4 +291,5 @@ class ProgramController extends Controller
                 ->with('error', 'Ocurrió un error inesperado al eliminar el programa.');
         }
     }
+
 }

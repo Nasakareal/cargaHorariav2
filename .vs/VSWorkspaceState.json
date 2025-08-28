@@ -3,8 +3,11 @@
     "",
     "\\app",
     "\\app\\Http",
-    "\\app\\Http\\Controllers"
+    "\\app\\Http\\Controllers",
+    "\\resources",
+    "\\resources\\views",
+    "\\resources\\views\\materias"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\ProgramController.php",
+  "SelectedNode": "\\resources\\views\\materias\\create.blade.php",
   "PreviewInSolutionExplorer": false
 }
