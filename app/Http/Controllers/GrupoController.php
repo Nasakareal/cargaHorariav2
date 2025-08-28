@@ -103,6 +103,8 @@ class GrupoController extends Controller
                 'estado'            => 1,
             ]);
 
+            $this->vincularMateriasAlGrupo((int)$id);
+
             if (class_exists(ActividadGeneral::class)) {
                 ActividadGeneral::registrar('CREAR', 'groups', $id, "Creó el grupo {$request->group_name}");
             }
@@ -283,6 +285,8 @@ class GrupoController extends Controller
                 'fyh_actualizacion'  => now(),
             ]);
 
+            $this->vincularMateriasAlGrupo((int)$id);
+
             if (class_exists(ActividadGeneral::class)) {
                 ActividadGeneral::registrar('ACTUALIZAR', 'groups', (int)$id, "Actualizó el grupo {$request->group_name}");
             }
@@ -335,5 +339,40 @@ class GrupoController extends Controller
             Log::error('Error inesperado al eliminar grupo', ['msg'=>$e->getMessage()]);
             return redirect()->route('grupos.index')->with('error','Ocurrió un error inesperado al eliminar el grupo.');
         }
+    }
+
+    /* =================== HELPERS =================== */
+    private function vincularMateriasAlGrupo(int $groupId): void
+    {
+        $g = DB::table('groups')
+            ->where('group_id', $groupId)
+            ->first(['program_id','term_id']);
+
+        if (!$g || !$g->program_id || !$g->term_id) {
+            return;
+        }
+
+        DB::statement('
+            INSERT INTO group_subjects (group_id, subject_id, fyh_creacion, fyh_actualizacion, estado)
+            SELECT ?, q.subject_id, NOW(), NULL, 1
+            FROM (
+                SELECT s.subject_id
+                FROM subjects s
+                WHERE s.program_id = ? AND s.term_id = ?
+                UNION
+                SELECT pts.subject_id
+                FROM program_term_subjects pts
+                WHERE pts.program_id = ? AND pts.term_id = ?
+            ) AS q
+            LEFT JOIN group_subjects gs
+                   ON gs.group_id = ?
+                  AND gs.subject_id = q.subject_id
+            WHERE gs.group_subject_id IS NULL
+        ', [
+            $groupId,
+            (int)$g->program_id, (int)$g->term_id,
+            (int)$g->program_id, (int)$g->term_id,
+            $groupId,
+        ]);
     }
 }

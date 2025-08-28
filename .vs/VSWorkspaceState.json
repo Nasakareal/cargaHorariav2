@@ -10,6 +10,6 @@
     "\\resources\\views\\materias",
     "\\routes"
   ],
-  "SelectedNode": "\\resources\\views\\materias\\index.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\GrupoController.php",
   "PreviewInSolutionExplorer": false
 }

@@ -112,7 +112,10 @@ class SubjectController extends Controller
                 []
             );
 
+            $this->vincularMateriaAGrupos((int)$materia->subject_id);
+
             ActividadGeneral::registrar('CREAR', 'subjects', $materia->subject_id, "Creó materia {$materia->subject_name}");
+            
 
             DB::commit();
             return redirect()->route('materias.index')->with('success', 'Materia creada correctamente.');
@@ -246,6 +249,8 @@ class SubjectController extends Controller
                 []
             );
 
+            $this->vincularMateriaAGrupos((int)$materia->subject_id);
+
             ActividadGeneral::registrar(
                 'ACTUALIZAR',
                 'subjects',
@@ -366,4 +371,45 @@ class SubjectController extends Controller
 
         return $pairs;
     }
+
+    private function vincularMateriaAGrupos(int $subjectId): void
+    {
+        // 1) Pairs por pivot
+        $pairs = DB::table('program_term_subjects')
+            ->where('subject_id', $subjectId)
+            ->select('program_id','term_id')
+            ->distinct()
+            ->get();
+
+        // 2) Si no hay en pivot, usar el programa/term directo de subjects
+        if ($pairs->isEmpty()) {
+            $row = DB::table('subjects')
+                ->where('subject_id', $subjectId)
+                ->first(['program_id','term_id']);
+            if ($row && $row->program_id && $row->term_id) {
+                $pairs = collect([(object)['program_id'=>$row->program_id, 'term_id'=>$row->term_id]]);
+            }
+        }
+
+        // 3) Insertar faltantes en group_subjects (uno por cada grupo que encaje)
+        foreach ($pairs as $p) {
+            DB::statement('
+                INSERT INTO group_subjects (group_id, subject_id, fyh_creacion, fyh_actualizacion, estado)
+                SELECT g.group_id, ?, NOW(), NULL, 1
+                FROM groups g
+                LEFT JOIN group_subjects gs
+                       ON gs.group_id = g.group_id
+                      AND gs.subject_id = ?
+                WHERE g.program_id = ?
+                  AND g.term_id    = ?
+                  AND gs.group_subject_id IS NULL
+            ', [
+                $subjectId,
+                $subjectId,
+                (int)$p->program_id,
+                (int)$p->term_id,
+            ]);
+        }
+    }
+
 }
