@@ -3,12 +3,7 @@
     "",
     "\\app",
     "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Requests",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\materias",
-    "\\routes"
+    "\\app\\Http\\Controllers"
   ],
   "SelectedNode": "\\app\\Http\\Controllers\\GrupoController.php",
   "PreviewInSolutionExplorer": false

@@ -247,7 +247,7 @@ class GrupoController extends Controller
                     ->leftJoin('groups as g2', 'g2.group_id', '=', 's2.group_id')
                     ->where('s1.group_id', (int)$id)
                     ->whereIn('s1.estado', ['1','ACTIVO','activo'])
-                    ->whereNull('s1.lab_id') // solo sesiones de aula del grupo
+                    ->whereNull('s1.lab_id')
                     ->whereColumn('s2.group_id', '!=', 's1.group_id')
                     ->select([
                         's2.group_id',
