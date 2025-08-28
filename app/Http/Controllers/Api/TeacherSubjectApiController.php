@@ -5,24 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Database\QueryException;
 use App\Models\ActividadGeneral;
 
 class TeacherSubjectApiController extends Controller
 {
-    /* ========== GET /v1/profesores/{profesor_id}/materias ==========
-       Devuelve:
-       - materias_asignadas (del profe)
-       - grupos_disponibles (según rol del usuario autenticado)
-    */
     public function index(Request $request, $profesor_id)
     {
         $profesor = DB::table('teachers')->where('teacher_id', (int)$profesor_id)->first();
         if (!$profesor) return response()->json(['message'=>'Profesor no encontrado'], 404);
 
-        // Materias ya asignadas al profe
         $materiasAsignadas = DB::table('teacher_subjects AS ts')
             ->join('subjects AS s', 's.subject_id', '=', 'ts.subject_id')
             ->leftJoin('groups as g', 'g.group_id', '=', 'ts.group_id')
@@ -41,7 +34,6 @@ class TeacherSubjectApiController extends Controller
             ->orderBy('s.subject_name')
             ->get();
 
-        // Grupos visibles por rol
         $grupos = $this->gruposVisiblesPorUsuario($request->user());
 
         return response()->json([
@@ -51,11 +43,6 @@ class TeacherSubjectApiController extends Controller
         ]);
     }
 
-    /* ========== POST /v1/profesores/{profesor_id}/materias ==========
-       Cuerpo:
-       - materias_asignadas: int[]
-       - grupos_asignados:   int[]
-    */
     public function store(Request $request, $profesor_id)
     {
         $user = $request->user();
@@ -67,22 +54,20 @@ class TeacherSubjectApiController extends Controller
         if (!$profesor) return response()->json(['message'=>'Profesor no encontrado'], 404);
 
         $request->validate([
-            'materias_asignadas' => 'nullable|array',
+            'materias_asignadas'   => 'nullable|array',
             'materias_asignadas.*' => 'integer',
-            'grupos_asignados'   => 'required|array|min:1',
-            'grupos_asignados.*' => 'integer',
+            'grupos_asignados'     => 'required|array|min:1',
+            'grupos_asignados.*'   => 'integer',
         ], [
             'grupos_asignados.required' => 'Seleccione al menos un grupo.',
         ]);
 
         $materiaIds = $request->input('materias_asignadas', []);
         $grupoIds   = array_values(array_filter($request->input('grupos_asignados', []), 'is_numeric'));
-
         if (empty($grupoIds)) {
             return response()->json(['message' => 'Faltan datos para asignar'], 422);
         }
 
-        // Filtro por rol (subdirector: solo su(s) área(s))
         $permitidos = $this->idsGruposVisibles($user);
         foreach ($grupoIds as $gid) {
             if (!in_array((int)$gid, $permitidos, true)) {
@@ -90,16 +75,13 @@ class TeacherSubjectApiController extends Controller
             }
         }
 
-        // Config horarios
         $horarios_disponibles = config('horarios.disponibles', []);
         $dias_semana          = config('horarios.dias_semana', []);
 
         DB::beginTransaction();
         try {
-            // Disponibilidad del profe
             $teacherAvailability = $this->cargarDisponibilidadProfesor((int)$profesor_id);
 
-            // horas por materia
             $mapHours = [];
             if (!empty($materiaIds)) {
                 $rows = DB::table('subjects')
@@ -119,6 +101,26 @@ class TeacherSubjectApiController extends Controller
                         continue;
                     }
 
+                    $taken = DB::table('teacher_subjects')
+                        ->where('group_id', (int)$g)
+                        ->where('subject_id', (int)$m)
+                        ->exists();
+                    if ($taken) {
+                        $errores[] = "La materia {$m} del grupo {$g} ya está asignada a otro profesor.";
+                        continue;
+                    }
+
+                    $saTaken = DB::table('schedule_assignments')
+                        ->where('group_id', (int)$g)
+                        ->where('subject_id', (int)$m)
+                        ->whereNotNull('teacher_id')
+                        ->where('estado', 'activo')
+                        ->exists();
+                    if ($saTaken) {
+                        $errores[] = "La materia {$m} del grupo {$g} ya tiene horario asignado con otro profesor.";
+                        continue;
+                    }
+
                     $ok = $this->asignarMateriaConBloquesYAparteSiSobra(
                         (int)$profesor_id, (int)$m, (int)$g, $wh, $errores,
                         $horarios_disponibles, $dias_semana, $teacherAvailability
@@ -126,7 +128,6 @@ class TeacherSubjectApiController extends Controller
 
                     if (!$ok) continue;
 
-                    // relación teacher_subjects (si no existe)
                     $exists = DB::table('teacher_subjects')
                         ->where('teacher_id', (int)$profesor_id)
                         ->where('subject_id', (int)$m)
@@ -135,11 +136,11 @@ class TeacherSubjectApiController extends Controller
 
                     if (!$exists) {
                         DB::table('teacher_subjects')->insert([
-                            'teacher_id'       => (int)$profesor_id,
-                            'subject_id'       => (int)$m,
-                            'group_id'         => (int)$g,
-                            'fyh_creacion'     => now(),
-                            'fyh_actualizacion'=> now(),
+                            'teacher_id'        => (int)$profesor_id,
+                            'subject_id'        => (int)$m,
+                            'group_id'          => (int)$g,
+                            'fyh_creacion'      => now(),
+                            'fyh_actualizacion' => now(),
                         ]);
                     }
                 }
@@ -150,7 +151,6 @@ class TeacherSubjectApiController extends Controller
                 return response()->json(['message'=>'Validación', 'errors'=>$errores], 422);
             }
 
-            // actualizar total de horas del profe
             $total = DB::table('teacher_subjects AS ts')
                 ->join('subjects AS s', 's.subject_id', '=', 'ts.subject_id')
                 ->where('ts.teacher_id', (int)$profesor_id)
@@ -178,7 +178,6 @@ class TeacherSubjectApiController extends Controller
         }
     }
 
-    /* ========== DELETE /v1/profesores/{profesor_id}/materias/{teacher_subject_id} ========== */
     public function destroy(Request $request, $profesor_id, $teacher_subject_id)
     {
         $user = $request->user();
@@ -197,21 +196,19 @@ class TeacherSubjectApiController extends Controller
 
         DB::beginTransaction();
         try {
-            // Liberar bloques en schedule_assignments (dejar teacher_id en null)
             DB::table('schedule_assignments')
                 ->where('teacher_id', (int)$profesor_id)
                 ->where('subject_id', (int)$rel->subject_id)
                 ->where('group_id',   (int)$rel->group_id)
                 ->update([
-                    'teacher_id'       => null,
-                    'fyh_actualizacion'=> now(),
+                    'teacher_id'        => null,
+                    'fyh_actualizacion' => now(),
                 ]);
 
             DB::table('teacher_subjects')
                 ->where('teacher_subject_id', (int)$teacher_subject_id)
                 ->delete();
 
-            // Actualizar horas del profe
             $total = DB::table('teacher_subjects AS ts')
                 ->join('subjects AS s', 's.subject_id', '=', 'ts.subject_id')
                 ->where('ts.teacher_id', (int)$profesor_id)
@@ -237,11 +234,6 @@ class TeacherSubjectApiController extends Controller
         }
     }
 
-    /* ========== POST /v1/profesores/{profesor_id}/ajax/materias-por-grupo ==========
-       Entrada: { group_id: int }
-       Salida:  [{subject_id, subject_name, weekly_hours}] (JSON)
-       Con filtro de área para Subdirector.
-    */
     public function materiasPorGrupo(Request $request, $profesor_id)
     {
         $user = $request->user();
@@ -252,7 +244,6 @@ class TeacherSubjectApiController extends Controller
         $groupId = (int) $request->input('group_id');
         if (!$groupId) return response()->json([]);
 
-        // Checa permiso por área/grupo
         $permitidos = $this->idsGruposVisibles($user);
         if (!in_array($groupId, $permitidos, true)) {
             return response()->json(['message' => 'No tienes permiso para ver ese grupo'], 403);
@@ -265,12 +256,19 @@ class TeacherSubjectApiController extends Controller
             ->join('subjects AS s', 's.subject_id', '=', 'pts.subject_id')
             ->where('pts.program_id', $group->program_id)
             ->where('pts.term_id',    $group->term_id)
-            // ← SOLO materias no tomadas por ningún profe en ESTE grupo
             ->whereNotExists(function ($q) use ($groupId) {
                 $q->select(DB::raw(1))
                   ->from('teacher_subjects as ts')
                   ->whereColumn('ts.subject_id', 'pts.subject_id')
                   ->where('ts.group_id', $groupId);
+            })
+            ->whereNotExists(function ($q) use ($groupId) {
+                $q->select(DB::raw(1))
+                  ->from('schedule_assignments as sa')
+                  ->whereColumn('sa.subject_id', 'pts.subject_id')
+                  ->where('sa.group_id', $groupId)
+                  ->whereNotNull('sa.teacher_id')
+                  ->where('sa.estado', 'activo');
             })
             ->select('s.subject_id','s.subject_name','s.weekly_hours')
             ->distinct()
@@ -280,9 +278,6 @@ class TeacherSubjectApiController extends Controller
         return response()->json($materias);
     }
 
-    /* ========== POST /v1/profesores/{profesor_id}/ajax/horas ==========
-       Devuelve { total: int }
-    */
     public function horasProfesor(Request $request, $profesor_id)
     {
         $total = DB::table('teacher_subjects AS ts')
@@ -292,8 +287,6 @@ class TeacherSubjectApiController extends Controller
 
         return response()->json(['total' => (int)($total ?? 0)]);
     }
-
-    /* ====================== HELPERS (clonan tu PHP) ====================== */
 
     private function gruposVisiblesPorUsuario($user)
     {
@@ -306,7 +299,6 @@ class TeacherSubjectApiController extends Controller
                 'g.group_id','g.group_name','g.program_id','g.term_id','g.turn_id',
                 'p.program_name','p.area'
             ])
-            // ← SOLO grupos con alguna materia aún libre
             ->whereExists(function ($q) {
                 $q->select(DB::raw(1))
                   ->from('program_term_subjects as pts')
@@ -317,6 +309,14 @@ class TeacherSubjectApiController extends Controller
                          ->from('teacher_subjects as ts')
                          ->whereColumn('ts.subject_id', 'pts.subject_id')
                          ->whereColumn('ts.group_id', 'g.group_id');
+                  })
+                  ->whereNotExists(function ($qq2) {
+                      $qq2->select(DB::raw(1))
+                          ->from('schedule_assignments as sa')
+                          ->whereColumn('sa.subject_id', 'pts.subject_id')
+                          ->whereColumn('sa.group_id', 'g.group_id')
+                          ->whereNotNull('sa.teacher_id')
+                          ->where('sa.estado', 'activo');
                   });
             })
             ->orderBy('g.group_name');
@@ -433,22 +433,22 @@ class TeacherSubjectApiController extends Controller
                     ->where('start_time', $s)
                     ->where('end_time',   $e)
                     ->update([
-                        'teacher_id'       => $teacherId,
-                        'fyh_actualizacion'=> now(),
+                        'teacher_id'        => $teacherId,
+                        'fyh_actualizacion' => now(),
                     ]);
             } else {
                 DB::table('schedule_assignments')->insert([
-                    'subject_id'     => $subjectId,
-                    'group_id'       => $groupId,
-                    'teacher_id'     => $teacherId,
-                    'classroom_id'   => $r->classroom_id,
-                    'lab_id'         => $r->lab_id,
-                    'schedule_day'   => $dia,
-                    'start_time'     => $s,
-                    'end_time'       => $e,
-                    'estado'         => 'activo',
-                    'fyh_creacion'   => now(),
-                    'tipo_espacio'   => $r->tipo_espacio ?: 'Laboratorio',
+                    'subject_id'    => $subjectId,
+                    'group_id'      => $groupId,
+                    'teacher_id'    => $teacherId,
+                    'classroom_id'  => $r->classroom_id,
+                    'lab_id'        => $r->lab_id,
+                    'schedule_day'  => $dia,
+                    'start_time'    => $s,
+                    'end_time'      => $e,
+                    'estado'        => 'activo',
+                    'fyh_creacion'  => now(),
+                    'tipo_espacio'  => $r->tipo_espacio ?: 'Laboratorio',
                 ]);
             }
 
@@ -495,8 +495,8 @@ class TeacherSubjectApiController extends Controller
             })
             ->where('estado','activo')
             ->update([
-                'teacher_id'       => $teacherId,
-                'fyh_actualizacion'=> now()
+                'teacher_id'        => $teacherId,
+                'fyh_actualizacion' => now()
             ]);
     }
 
@@ -515,7 +515,6 @@ class TeacherSubjectApiController extends Controller
 
         if (!$this->profesorEstaDisponible($availability, $dia, $s, $e)) return false;
 
-        // choque con cualquier materia del grupo
         $c1 = DB::table('schedule_assignments')
             ->where('group_id', $groupId)
             ->where('schedule_day', $dia)
@@ -524,7 +523,6 @@ class TeacherSubjectApiController extends Controller
             ->count();
         if ($c1 > 0) return false;
 
-        // choque con horario del profe
         if ($teacherId && !$this->teacherLibreEnHorario($teacherId, $dia, $s, $e)) return false;
 
         DB::table('schedule_assignments')->insert([
@@ -571,7 +569,6 @@ class TeacherSubjectApiController extends Controller
             return false;
         }
 
-        // 1) copiar bloques manuales
         $hManual = $this->copiarBloquesManualASchedule($teacherId, $subjectId, $groupId, $availability);
         if ($hManual === false) {
             $errores[] = "El profesor no puede cubrir los bloques manuales de la materia $subjectId en el grupo $groupId.";
@@ -580,7 +577,6 @@ class TeacherSubjectApiController extends Controller
         $weeklyHours -= (int)$hManual;
         if ($weeklyHours <= 0) return true;
 
-        // 2) bloques existentes sin profe
         $cnt = $this->checarTodosBloquesExistentes($teacherId, $subjectId, $groupId, $availability);
         if ($cnt === false) {
             $errores[] = "No se asignó materia $subjectId al grupo $groupId: el profesor no puede cubrir todos los bloques existentes.";
@@ -596,7 +592,6 @@ class TeacherSubjectApiController extends Controller
         }
         if ($weeklyHours <= 0) return true;
 
-        // 3) completar huecos de 1h
         $diasTurno = $dias_semana[$turno];
         $dc = count($diasTurno);
         $i = 0;

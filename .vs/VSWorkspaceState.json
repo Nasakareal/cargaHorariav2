@@ -1,15 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\app",
-    "\\app\\Http",
-    "\\app\\Http\\Controllers",
-    "\\app\\Http\\Controllers\\Api",
     "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\profesores",
-    "\\routes"
+    "\\resources\\views"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Api\\TeacherSubjectApiController.php",
+  "SelectedNode": "\\resources\\views\\home.blade.php",
   "PreviewInSolutionExplorer": false
 }
