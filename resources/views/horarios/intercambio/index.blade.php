@@ -1,6 +1,3 @@
-{{-- ============================
-     Intercambio de horarios (solo mover/borrar)
-     ============================ --}}
 @extends('adminlte::page')
 
 @section('title', 'Intercambio de horarios')
@@ -60,12 +57,12 @@
 <style>
   .fc .fc-timegrid-event { font-size: 11px; color:#fff !important; }
   .fc .fc-toolbar-title { font-size: 1.05rem; }
-  /* altura uniforme por slot de 30min */
-    .fc .fc-timegrid-slot { height: 36px; }  /* ajusta 32–42px a gusto */
 
-    /* forzar scroll vertical interno del grid por si algún theme lo pisa */
-    .fc .fc-scroller { overflow-y: auto !important; }
+  /* altura uniforme por slot de 30 min */
+  .fc .fc-timegrid-slot { height: 36px; }
 
+  /* forzar scroll vertical interno del grid por si algún theme lo pisa */
+  .fc .fc-scroller { overflow-y: auto !important; }
 </style>
 @endsection
 
@@ -81,13 +78,12 @@
   // ============================
   const CSRF = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-  // OJO: si tus names NO llevan el prefijo "horarios.", cámbialos a "manual.ajax.grupo", "manual.ajax.mover", "manual.ajax.borrar"
-    const RUTAS = {
-      eventosGrupo : @json(route('horarios.intercambio.ajax.grupo', ['group_id' => '__ID__'])),
-      mover        : @json(route('horarios.intercambio.mover')),
-      borrar       : @json(route('horarios.intercambio.borrar')),
-    };
-
+  // Cambia los names aquí si tus rutas se llaman diferente
+  const RUTAS = {
+    eventosGrupo : @json(route('horarios.intercambio.ajax.grupo', ['group_id' => '__ID__'])),
+    mover        : @json(route('horarios.intercambio.mover')),
+    borrar       : @json(route('horarios.intercambio.borrar')),
+  };
 
   // ============================
   // Helpers
@@ -127,37 +123,38 @@
     return PALETTE[idx];
   }
 
-    function buildFCEvents(rows){
-      return rows.map(r=>{
-        const num = DAYS_MAP[ normalizaDiaEs(r.schedule_day) ];
-        if(!num) return null;
-        const ymd = weekDateFor(num);
-        const color = colorForSubject(r.subject_id);
-        const labId = r.lab1_assigned ?? r.lab2_assigned ?? null;
+  function buildFCEvents(rows){
+    return rows.map(r=>{
+      const num = DAYS_MAP[ normalizaDiaEs(r.schedule_day) ];
+      if(!num) return null;
+      const ymd = weekDateFor(num);
+      const color = colorForSubject(r.subject_id);
 
-        return {
-          title: `${r.subject_name} - Grupo ${r.group_name}`,
-          start: `${ymd}T${r.start_time}`,
-          end  : `${ymd}T${r.end_time}`,
-          backgroundColor: color,
-          borderColor: color,
-          textColor:'#fff',
-          editable:true,
-          extendedProps: {
-            assignment_id: r.assignment_id,
-            subject_id: r.subject_id,
-            group_id: r.group_id,
-            schedule_day: r.schedule_day,
-            start_time: r.start_time,
-            end_time: r.end_time,
-            tipo_espacio: r.tipo_espacio,     // <---
-            classroom_id: r.classroom_id,     // <---
-            lab_id: labId                      // <---
-          }
-        };
-      }).filter(Boolean);
-    }
+      // soporte para schedule (lab_id) y, si algún día regresas manual, lab1/lab2
+      const labId = (r.lab_id ?? r.lab1_assigned ?? r.lab2_assigned ?? null);
 
+      return {
+        title: `${r.subject_name} - Grupo ${r.group_name}`,
+        start: `${ymd}T${r.start_time}`,
+        end  : `${ymd}T${r.end_time}`,
+        backgroundColor: color,
+        borderColor: color,
+        textColor:'#fff',
+        editable:true,
+        extendedProps: {
+          assignment_id: r.assignment_id,
+          subject_id   : r.subject_id,
+          group_id     : r.group_id,
+          schedule_day : r.schedule_day,
+          start_time   : r.start_time,
+          end_time     : r.end_time,
+          tipo_espacio : r.tipo_espacio ?? null,
+          classroom_id : r.classroom_id ?? null,
+          lab_id       : labId
+        }
+      };
+    }).filter(Boolean);
+  }
 
   async function cargarEventosGrupo(groupId){
     if(!groupId){ calendar?.removeAllEvents(); return; }
@@ -193,6 +190,16 @@
       slotDuration:'00:30',
       hiddenDays:[0],
 
+      // reforzar colores por si FullCalendar re-renderiza
+      eventDidMount: function(info){
+        const sid = info.event.extendedProps.subject_id;
+        if (!sid) return;
+        const c = colorForSubject(sid);
+        info.el.style.backgroundColor = c;
+        info.el.style.borderColor = c;
+        info.el.style.color = '#fff';
+      },
+
       // mover evento existente
       eventDrop: async function(info){
         const isLab = (info.event.extendedProps.tipo_espacio === 'Laboratorio');
@@ -205,14 +212,15 @@
           schedule_day : new Intl.DateTimeFormat('es-MX',{weekday:'long', timeZone: CAL_TZ})
                            .format(new Date(info.event.startStr)),
           group_id     : info.event.extendedProps.group_id,
-          tipo_espacio : info.event.extendedProps.tipo_espacio,
+
+          // No obligamos aula/lab: solo mandamos lo que ya trae el registro
+          tipo_espacio : info.event.extendedProps.tipo_espacio || null,
           lab_id       : isLab ? (info.event.extendedProps.lab_id || null) : null,
           aula_id      : isLab ? null : (info.event.extendedProps.classroom_id || null),
         };
 
-
         try{
-          const resp = await fetchJson(RUTAS.mover,{
+          const resp = await fetchJson(RUTAS.mover, {
             method:'POST',
             headers:{'Content-Type':'application/json'},
             body: JSON.stringify(payload)

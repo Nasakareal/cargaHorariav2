@@ -22,7 +22,7 @@ class HorarioManualController extends Controller
         // Grupos activos
         $grupos = DB::table('groups')
             ->select('group_id', 'group_name', 'area', 'classroom_assigned')
-            ->where('estado', '1') // se mantiene '1' porque así lo usabas en PHP
+            ->where('estado', '1')
             ->orderBy('group_name')
             ->get();
 
@@ -81,11 +81,11 @@ class HorarioManualController extends Controller
         $subject_id    = (int) $request->input('subject_id');
         $start_time    = $request->input('start_time');
         $end_time      = $request->input('end_time');
-        $schedule_day  = $this->canonicalDay($request->input('schedule_day')); // <<<<<<
+        $schedule_day  = $this->canonicalDay($request->input('schedule_day'));
         $group_id      = (int) $request->input('group_id');
         $lab_id        = $request->input('lab_id');
         $aula_id       = $request->input('aula_id');
-        $tipo_espacio  = $request->input('tipo_espacio'); // "Laboratorio" | "Aula"
+        $tipo_espacio  = $request->input('tipo_espacio');
 
         if (empty($subject_id) || empty($start_time) || empty($schedule_day) || empty($group_id)) {
             return response()->json(['status' => 'error', 'message' => 'Faltan datos requeridos.'], 422);
@@ -232,7 +232,7 @@ class HorarioManualController extends Controller
 
             // Insert ESPEJO en schedule con el MISMO assignment_id  <<<<<< CLAVE
             $dataSchedule = [
-                'assignment_id' => $assignment_id, // <<<<<<
+                'assignment_id' => $assignment_id,
                 'subject_id'    => $subject_id,
                 'teacher_id'    => $teacher_id,
                 'group_id'      => $group_id,
@@ -270,7 +270,7 @@ class HorarioManualController extends Controller
         $subject_id    = (int) $request->input('subject_id');
         $start_time    = $this->toHms($request->input('start_time'));
         $end_time      = $request->input('end_time') ? $this->toHms($request->input('end_time')) : null;
-        $schedule_day  = $this->canonicalDay($request->input('schedule_day')); // <<<<<<
+        $schedule_day  = $this->canonicalDay($request->input('schedule_day'));
         $group_id      = (int) $request->input('group_id');
         $lab_id        = $request->input('lab_id');
         $aula_id       = $request->input('aula_id');
@@ -451,7 +451,6 @@ class HorarioManualController extends Controller
         try {
             DB::beginTransaction();
 
-            // En vez de DELETE físico, marcar inactivo (coincide con tus consultas por 'activo')
             DB::table('manual_schedule_assignments')
                 ->where('assignment_id', $assignment_id)
                 ->update(['estado' => 'inactivo', 'fyh_actualizacion' => Carbon::now()->format('Y-m-d H:i:s')]);
@@ -473,8 +472,7 @@ class HorarioManualController extends Controller
     // ============================
     public function mover(Request $request)
     {
-        // Reutiliza update() con los mismos checks
-        $request->merge(['tipo_espacio' => $request->input('tipo_espacio')]); // Laboratorio | Aula
+        $request->merge(['tipo_espacio' => $request->input('tipo_espacio')]);
         return $this->update($request, (int)$request->input('assignment_id'));
     }
 
@@ -722,7 +720,7 @@ class HorarioManualController extends Controller
                   ->orWhere('a.lab2_assigned', (int) $lab_id);
             });
         } else {
-            return response()->json([]); // sin filtros no regresamos nada
+            return response()->json([]);
         }
 
         return response()->json($q->orderBy('a.start_time')->get());

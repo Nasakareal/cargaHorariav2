@@ -79,7 +79,9 @@ class EliminarMateriasController extends Controller
             DB::beginTransaction();
 
             $this->cleanupScheduleForTeacherSubjects($tsIds, (int)$id);
+
             $borrados = DB::table('teacher_subjects')->whereIn('teacher_subject_id', $tsIds)->delete();
+
             $total = DB::table('teacher_subjects AS ts')
                 ->join('subjects AS s', 's.subject_id', '=', 'ts.subject_id')
                 ->where('ts.teacher_id', (int)$id)
@@ -167,43 +169,172 @@ class EliminarMateriasController extends Controller
             ]);
     }
 
+    /**
+     * Regla:
+     * - Si EXISTE espejo en manual para el mismo slot+recurso => NO borrar; poner teacher_id=NULL en ambas tablas.
+     * - Si SOLO existe en schedule (sin espejo manual) => borrar el bloque en schedule.
+     * - Nunca empatar por assignment_id entre tablas: se empata por subject_id, group_id, day, slot y recurso.
+     */
     protected function cleanupScheduleForTeacherSubjects($tsIds, int $teacherId): void
     {
         $tsIdsArr = collect($tsIds)->values();
+        if ($tsIdsArr->isEmpty()) return;
+
+        // 1) Pairs subject_id/group_id de los TS seleccionados
+        $pairs = DB::table('teacher_subjects')
+            ->whereIn('teacher_subject_id', $tsIdsArr)
+            ->get(['subject_id', 'group_id']);
+
+        if ($pairs->isEmpty()) return;
+
+        $subjects = $pairs->pluck('subject_id')->unique()->values();
+        $groups   = $pairs->pluck('group_id')->unique()->values();
+
+        // Normalizador de día (quita acentos y pone minúsculas)
+        $normDay = function (?string $s) {
+            $s = (string)($s ?? '');
+            $s = mb_strtolower($s, 'UTF-8');
+            $s = \Normalizer::normalize($s, \Normalizer::FORM_D);
+            $s = preg_replace('/[\x{0300}-\x{036f}]/u', '', $s);
+            return $s;
+        };
+
+        // Función overlap con misma duración
+        $sameDurationOverlap = function ($sStart, $sEnd, $mStart, $mEnd) {
+            if (!$sStart || !$sEnd || !$mStart || !$mEnd) return false;
+            $ss = strtotime($sStart);
+            $se = strtotime($sEnd);
+            $ms = strtotime($mStart);
+            $me = strtotime($mEnd);
+            if (!$ss || !$se || !$ms || !$me) return false;
+            $durS = $se - $ss;
+            $durM = $me - $ms;
+            if ($durS !== $durM) return false;
+            return ($sStart < $mEnd) && ($sEnd > $mStart);
+        };
+
+        // 2) Traer filas relevantes de ambas tablas (filtradas por subject/group)
+        $schedRows = collect();
+        $manualRows = collect();
 
         if (Schema::hasTable('schedule_assignments')) {
-            if (Schema::hasColumn('schedule_assignments', 'teacher_subject_id')) {
-                DB::table('schedule_assignments')->whereIn('teacher_subject_id', $tsIdsArr)->delete();
-            } else {
-                $pairs = DB::table('teacher_subjects')
-                    ->whereIn('teacher_subject_id', $tsIdsArr)
-                    ->get(['subject_id', 'group_id']);
-
-                foreach ($pairs as $p) {
-                    DB::table('schedule_assignments')
-                        ->where('teacher_id', $teacherId)
-                        ->where('subject_id', $p->subject_id)
-                        ->where('group_id', $p->group_id)
-                        ->delete();
-                }
-            }
+            $schedRows = DB::table('schedule_assignments')
+                ->whereIn('subject_id', $subjects)
+                ->whereIn('group_id', $groups)
+                ->get([
+                    'assignment_id','subject_id','group_id','teacher_id',
+                    'classroom_id','lab_id',
+                    'start_time','end_time','schedule_day','estado','tipo_espacio'
+                ]);
         }
 
         if (Schema::hasTable('manual_schedule_assignments')) {
-            if (Schema::hasColumn('manual_schedule_assignments', 'teacher_subject_id')) {
-                DB::table('manual_schedule_assignments')->whereIn('teacher_subject_id', $tsIdsArr)->delete();
-            } else {
-                $pairs = DB::table('teacher_subjects')
-                    ->whereIn('teacher_subject_id', $tsIdsArr)
-                    ->get(['subject_id', 'group_id']);
+            $manualRows = DB::table('manual_schedule_assignments')
+                ->whereIn('subject_id', $subjects)
+                ->whereIn('group_id', $groups)
+                ->get([
+                    'assignment_id','subject_id','group_id','teacher_id',
+                    'classroom_id','lab1_assigned','lab2_assigned',
+                    'start_time','end_time','schedule_day','estado','tipo_espacio'
+                ]);
+        }
 
-                foreach ($pairs as $p) {
-                    DB::table('manual_schedule_assignments')
-                        ->where('subject_id', $p->subject_id)
-                        ->where('group_id', $p->group_id)
-                        ->delete();
-                }
+        // 3) Índice manual por (subject,group,day_norm,recurso,times)
+        $manualByKey = [];
+        foreach ($manualRows as $m) {
+            $dayKey = $normDay($m->schedule_day);
+            $lab = (int)($m->lab1_assigned ?: $m->lab2_assigned ?: 0);
+            $resType = $lab > 0 ? 'lab' : 'aula';
+            $resId   = $lab > 0 ? $lab : (int)($m->classroom_id ?: 0);
+
+            $key = implode('|', [
+                (int)$m->subject_id, (int)$m->group_id,
+                $dayKey, $resType, $resId,
+                (string)$m->start_time, (string)$m->end_time
+            ]);
+
+            $manualByKey[$key] = ($manualByKey[$key] ?? []);
+            $manualByKey[$key][] = $m;
+        }
+
+        // 4) Procesar schedule uno por uno según REGLA
+        $toNullSched = [];
+        $toDeleteSched = [];
+        $toNullManual = [];
+
+        foreach ($schedRows as $s) {
+            if ((int)$s->teacher_id !== $teacherId) {
+                // No se está eliminando esta relación del profe; saltar.
+                continue;
             }
+
+            $dayKey = $normDay($s->schedule_day);
+            $resType = ((int)$s->lab_id > 0) ? 'lab' : 'aula';
+            $resId   = ((int)$s->lab_id > 0) ? (int)$s->lab_id : (int)($s->classroom_id ?: 0);
+
+            // a) Buscar espejo EXACTO (start/end iguales)
+            $exactKey = implode('|', [
+                (int)$s->subject_id, (int)$s->group_id, $dayKey, $resType, $resId,
+                (string)$s->start_time, (string)$s->end_time
+            ]);
+
+            $matches = collect($manualByKey[$exactKey] ?? []);
+
+            // b) Si no hay exacto, permitir overlap con misma duración + mismo recurso
+            if ($matches->isEmpty()) {
+                $candidates = $manualRows->filter(function($m) use ($s, $dayKey, $resType, $resId, $sameDurationOverlap, $normDay) {
+                    $lab = (int)($m->lab1_assigned ?: $m->lab2_assigned ?: 0);
+                    $mResType = $lab > 0 ? 'lab' : 'aula';
+                    $mResId   = $lab > 0 ? $lab : (int)($m->classroom_id ?: 0);
+
+                    return
+                        ((int)$m->subject_id === (int)$s->subject_id) &&
+                        ((int)$m->group_id   === (int)$s->group_id) &&
+                        ($normDay($m->schedule_day) === $dayKey) &&
+                        ($mResType === $resType) &&
+                        ($mResId   === $resId) &&
+                        $sameDurationOverlap($s->start_time, $s->end_time, $m->start_time, $m->end_time);
+                });
+                $matches = $candidates->values();
+            }
+
+            if ($matches->isNotEmpty()) {
+                // REGLA #1: hay espejo manual -> NO borrar, solo poner teacher_id=NULL en ambas
+                $toNullSched[] = (int)$s->assignment_id;
+                foreach ($matches as $m) {
+                    $toNullManual[] = (int)$m->assignment_id;
+                }
+            } else {
+                // REGLA #2: NO hay espejo manual -> borrar en schedule
+                $toDeleteSched[] = (int)$s->assignment_id;
+            }
+        }
+
+        // 5) Aplicar cambios en BD
+        if (!empty($toNullSched) && Schema::hasTable('schedule_assignments')) {
+            DB::table('schedule_assignments')
+                ->whereIn('assignment_id', $toNullSched)
+                ->update(['teacher_id' => null, 'fyh_actualizacion' => now()]);
+        }
+
+        if (!empty($toDeleteSched) && Schema::hasTable('schedule_assignments')) {
+            DB::table('schedule_assignments')
+                ->whereIn('assignment_id', $toDeleteSched)
+                ->delete();
+        }
+
+        if (!empty($toNullManual) && Schema::hasTable('manual_schedule_assignments')) {
+            DB::table('manual_schedule_assignments')
+                ->whereIn('assignment_id', array_values(array_unique($toNullManual)))
+                ->update(['teacher_id' => null, 'fyh_actualizacion' => now()]);
+        }
+
+        if (Schema::hasTable('manual_schedule_assignments')) {
+            DB::table('manual_schedule_assignments')
+                ->whereIn('subject_id', $subjects)
+                ->whereIn('group_id', $groups)
+                ->where('teacher_id', $teacherId)
+                ->update(['teacher_id' => null, 'fyh_actualizacion' => now()]);
         }
     }
 

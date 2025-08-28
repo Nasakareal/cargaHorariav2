@@ -4,10 +4,13 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Config",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\materias"
+    "\\resources\\views\\horarios",
+    "\\resources\\views\\horarios\\intercambio",
+    "\\resources\\views\\horarios\\manual"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\SubjectController.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Config\\EliminarMateriasController.php",
   "PreviewInSolutionExplorer": false
 }
