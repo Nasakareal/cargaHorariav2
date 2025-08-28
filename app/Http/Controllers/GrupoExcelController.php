@@ -33,30 +33,61 @@ class GrupoExcelController extends Controller
 
     public function import(GrupoExcelImportRequest $request)
     {
-        $uploaded = $request->file('file');
-        $path     = $uploaded->getRealPath();
-        $ext      = strtolower($uploaded->getClientOriginalExtension());
-
-        if (in_array($ext, ['csv','txt'])) {
-            $reader = IOFactory::createReader('Csv');
-            $reader->setInputEncoding('UTF-8');
-            $reader->setDelimiter(',');
-            $reader->setEnclosure('"');
-            $reader->setSheetIndex(0);
-        } else {
-            $reader = IOFactory::createReaderForFile($path);
+        // Acepta ambos nombres
+        $uploaded = $request->file('file') ?? $request->file('archivo');
+        if (!$uploaded) {
+            return back()->with('error', 'No se recibió archivo (usa name="file" o name="archivo" en el input).');
         }
 
-        $spreadsheet = $reader->load($path);
-        $sheet = $spreadsheet->getActiveSheet();
+        $path = $uploaded->getRealPath();
+        $ext  = strtolower($uploaded->getClientOriginalExtension());
 
-        // A arreglo (índices numéricos 0..N)
+        // Revisa extensiones críticas antes de cargar
+        if (in_array($ext, ['xlsx','xls'])) {
+            if (!extension_loaded('zip')) {
+                return back()->with('error', 'Falta la extensión ZIP/ZipArchive en PHP (requerida para XLSX/XLS).');
+            }
+            if (!extension_loaded('xml')) {
+                return back()->with('error', 'Falta la extensión PHP-XML (requerida para XLSX/XLS).');
+            }
+            if (!extension_loaded('mbstring')) {
+                return back()->with('error', 'Falta la extensión mbstring (requerida para manejo de cadenas).');
+            }
+        }
+
+        try {
+            if (in_array($ext, ['csv','txt'])) {
+                $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReader('Csv');
+                $reader->setInputEncoding('UTF-8');
+                $reader->setDelimiter(',');
+                $reader->setEnclosure('"');
+                $reader->setSheetIndex(0);
+            } else {
+                $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($path);
+            }
+
+            $spreadsheet = $reader->load($path);
+            $sheet = $spreadsheet->getActiveSheet();
+        } catch (\Throwable $e) {
+            $msg = $e->getMessage();
+            if (str_contains($msg, 'ZipArchive') || str_contains($msg, 'zip')) {
+                return back()->with('error', 'No se pudo abrir XLSX: instala/extiende ZipArchive (php-zip).');
+            }
+            if (str_contains($msg, 'mb_') || str_contains($msg, 'mbstring')) {
+                return back()->with('error', 'Activa php-mbstring en el servidor.');
+            }
+            if (str_contains($msg, 'XML') || str_contains($msg, 'DOMDocument')) {
+                return back()->with('error', 'Activa php-xml en el servidor.');
+            }
+            return back()->with('error', 'No se pudo leer el archivo: '.$msg);
+        }
+
         $rows = $sheet->toArray(null, true, true, false);
         if (empty($rows)) {
             return back()->with('error', 'El archivo está vacío.');
         }
 
-        // Deben ser 9 columnas (No., Área, Abreviatura, Programa, Nivel, Cuatrimestre, Sufijo, Turno, Volumen)
+        // 9 columnas esperadas
         $maxCols = 0;
         foreach ($rows as $r) { $maxCols = max($maxCols, count($r)); }
         if ($maxCols < 9) {
@@ -66,12 +97,8 @@ class GrupoExcelController extends Controller
         $errores = [];
         $creados = 0;
 
-        // Datos inician en la fila 4 (0-based => índice 3)
         for ($i = 3; $i < count($rows); $i++) {
-            // Normaliza a 9 columnas
             $data = array_pad(array_map(fn($v) => trim((string)$v), $rows[$i]), 9, '');
-
-            // Si la fila está completamente vacía, la saltamos
             if (implode('', $data) === '') { continue; }
 
             $area            = $data[1] ?? null;
@@ -86,52 +113,33 @@ class GrupoExcelController extends Controller
             $group_name = mb_strtoupper("{$abreviatura}-{$term_number}{$group_suffix}", 'UTF-8');
             $fallas = [];
 
-            if (!$abreviatura || $abreviatura === '-') {
-                $fallas[] = "Falta abreviatura del programa.";
-            }
-            if (!$group_suffix) {
-                $fallas[] = "Falta sufijo del grupo (ej. A, B, C).";
-            }
+            if (!$abreviatura || $abreviatura === '-') $fallas[] = "Falta abreviatura del programa.";
+            if (!$group_suffix) $fallas[] = "Falta sufijo del grupo (ej. A, B, C).";
             if (!$term_number || $term_number <= 0) {
                 $fallas[] = "El cuatrimestre debe ser un número válido mayor que 0.";
             } else {
                 $termExiste = DB::table('terms')->where('term_id', $term_number)->exists();
-                if (!$termExiste) {
-                    $fallas[] = "El cuatrimestre {$term_number} no existe en la tabla de cuatrimestres (terms).";
-                }
+                if (!$termExiste) $fallas[] = "El cuatrimestre {$term_number} no existe en terms.";
             }
 
             if ($volume !== null && $volume !== '') {
-                if (!is_numeric($volume) || (int)$volume < 0) {
-                    $fallas[] = "El volumen debe ser un número entero mayor o igual a 0.";
-                } else {
-                    $volume = (int)$volume;
-                }
-            } else {
-                $volume = 0;
-            }
+                if (!is_numeric($volume) || (int)$volume < 0) $fallas[] = "El volumen debe ser un entero ≥ 0.";
+                else $volume = (int)$volume;
+            } else { $volume = 0; }
 
-            if (!$program_name) {
-                $fallas[] = "Falta el nombre del programa educativo.";
-            }
+            if (!$program_name) $fallas[] = "Falta el nombre del programa educativo.";
 
             $program = $program_name
                 ? DB::table('programs')->select('program_id','area')->where('program_name', $program_name)->first()
                 : null;
 
-            if (!$program) {
-                $fallas[] = "El programa '{$program_name}' no existe en la tabla programs.";
-            }
+            if (!$program) $fallas[] = "El programa '{$program_name}' no existe en programs.";
 
-            $turn    = null;
-            $turn_id = null;
+            $turn = null; $turn_id = null;
             if ($turn_name) {
                 $turn = DB::table('shifts')->select('shift_id')->where('shift_name', $turn_name)->first();
-                if (!$turn) {
-                    $fallas[] = "El turno '{$turn_name}' no existe en la tabla shifts.";
-                } else {
-                    $turn_id = $turn->shift_id;
-                }
+                if (!$turn) $fallas[] = "El turno '{$turn_name}' no existe en shifts.";
+                else $turn_id = $turn->shift_id;
             }
 
             $program_id = $program->program_id ?? null;
@@ -139,9 +147,7 @@ class GrupoExcelController extends Controller
 
             if ($group_name && $program_id) {
                 $dup = DB::table('groups')->where('group_name', $group_name)->exists();
-                if ($dup) {
-                    $fallas[] = "El grupo '{$group_name}' ya existe.";
-                }
+                if ($dup) $fallas[] = "El grupo '{$group_name}' ya existe.";
             }
 
             if (!empty($fallas)) {
@@ -150,10 +156,7 @@ class GrupoExcelController extends Controller
             }
 
             try {
-                DB::transaction(function () use (
-                    $area_value, $nivel_educativo, $term_number, $volume, $turn_id,
-                    $program_id, $group_name, &$creados
-                ) {
+                DB::transaction(function () use ($area_value, $nivel_educativo, $term_number, $volume, $turn_id, $program_id, $group_name, &$creados) {
                     $group_id = DB::table('groups')->insertGetId([
                         'group_name'   => $group_name,
                         'program_id'   => $program_id,
@@ -165,15 +168,13 @@ class GrupoExcelController extends Controller
                         'estado'       => "1",
                     ]);
 
-                    // Inserta nivel educativo solo si hay dato y existe la tabla
-                    if ($nivel_educativo !== null && $nivel_educativo !== '' && Schema::hasTable('educational_levels')) {
+                    if ($nivel_educativo !== null && $nivel_educativo !== '' && \Illuminate\Support\Facades\Schema::hasTable('educational_levels')) {
                         DB::table('educational_levels')->insert([
                             'level_name' => $nivel_educativo,
                             'group_id'   => $group_id,
                         ]);
                     }
 
-                    // Vincula materias del programa/term a ese grupo
                     $subjects = DB::table('subjects')->select('subject_id')
                         ->where('program_id', $program_id)
                         ->where('term_id', $term_number)
@@ -206,6 +207,7 @@ class GrupoExcelController extends Controller
 
         return back()->with('success', "Grupos registrados con éxito. Total creados: {$creados}");
     }
+
 
     private function msgFila(int $row, string $texto): string
     {
