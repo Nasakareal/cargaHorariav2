@@ -441,7 +441,6 @@ class HorarioManualController extends Controller
         }
     }
 
-
     // ============================
     // 4) Eliminar (click borrar) - endpoint REST
     // ============================
@@ -451,19 +450,21 @@ class HorarioManualController extends Controller
         try {
             DB::beginTransaction();
 
+            // Eliminar en manual
             DB::table('manual_schedule_assignments')
                 ->where('assignment_id', $assignment_id)
-                ->update(['estado' => 'inactivo', 'fyh_actualizacion' => Carbon::now()->format('Y-m-d H:i:s')]);
+                ->delete();
 
+            // Eliminar en schedule (espejo)
             DB::table('schedule_assignments')
                 ->where('assignment_id', $assignment_id)
-                ->update(['estado' => 'inactivo', 'fyh_actualizacion' => Carbon::now()->format('Y-m-d H:i:s')]);
+                ->delete();
 
             DB::commit();
-            return response()->json(['status'=>'success','message'=>'Asignación eliminada.']);
+            return response()->json(['status' => 'success', 'message' => 'Asignación eliminada permanentemente.']);
         } catch (\Throwable $e) {
             DB::rollBack();
-            return response()->json(['status'=>'error','message'=>'Error al eliminar: '.$e->getMessage()],500);
+            return response()->json(['status' => 'error', 'message' => 'Error al eliminar: ' . $e->getMessage()], 500);
         }
     }
 
