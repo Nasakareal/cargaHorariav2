@@ -6,11 +6,6 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class GrupoExcelImportRequest extends FormRequest
 {
-    public function authorize(): bool
-    {
-        return $this->user()?->can('importar grupos') ?? true;
-    }
-
     public function rules(): array
     {
         return [
