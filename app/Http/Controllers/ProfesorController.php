@@ -318,8 +318,7 @@ class ProfesorController extends Controller
                   });
             });
 
-        // Filtro por rol: Subdirector solo ve sus áreas
-        if (auth()->user()?->hasRole('Subdirector')) {
+        if (auth()->user()?->hasAnyRole(['Subdirector', 'Comisiones Internas'])) {
             $areas = collect(explode(',', (string)(auth()->user()->area ?? '')))
                 ->map(fn($a) => trim($a))
                 ->filter()
@@ -333,13 +332,11 @@ class ProfesorController extends Controller
             }
         }
 
-        // Si no fue seteado arriba (caso sin áreas), ejecuta el query
         if (!isset($grupos)) {
             $grupos = $q->orderBy('g.group_name')
                 ->get(['g.group_id','g.group_name','g.program_id','g.term_id','g.turn_id']);
         }
 
-        // Materias ya asignadas al profe (para precargar la caja derecha si quieres)
         $materiasAsignadas = collect();
 
         return view('profesores.asignar', compact('profesor','grupos','materiasAsignadas'));
