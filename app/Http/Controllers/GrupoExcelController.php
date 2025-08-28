@@ -21,7 +21,6 @@ class GrupoExcelController extends Controller
         ];
         $callback = function () use ($headers, $rows) {
             $FH = fopen('php://output', 'w');
-            // BOM UTF-8
             fprintf($FH, chr(0xEF).chr(0xBB).chr(0xBF));
             fputcsv($FH, $headers);
             foreach ($rows as $r) { fputcsv($FH, $r); }
@@ -38,7 +37,6 @@ class GrupoExcelController extends Controller
         $path     = $uploaded->getRealPath();
         $ext      = strtolower($uploaded->getClientOriginalExtension());
 
-        // Lector según tipo
         if (in_array($ext, ['csv','txt'])) {
             $reader = IOFactory::createReader('Csv');
             $reader->setInputEncoding('UTF-8');

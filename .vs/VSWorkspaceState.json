@@ -5,8 +5,9 @@
     "\\app\\Http",
     "\\app\\Http\\Controllers",
     "\\app\\Http\\Requests",
-    "\\resources"
+    "\\resources",
+    "\\routes"
   ],
-  "SelectedNode": "\\app\\Http\\Requests\\GrupoExcelImportRequest.php",
+  "SelectedNode": "\\routes\\web.php",
   "PreviewInSolutionExplorer": false
 }

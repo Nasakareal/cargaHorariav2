@@ -110,9 +110,9 @@ Route::prefix('grupos')->name('grupos.')->middleware('can:ver grupos')->group(fu
 });
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('/grupos/plantilla-excel', [GrupoExcelController::class, 'template'])->name('grupos.excel.plantilla')->middleware('can:crear grupos');
+    Route::get('/grupos/plantilla-excel', [GrupoExcelController::class, 'template'])->name('grupos.excel.plantilla');
 
-    Route::post('/grupos/importar-excel', [GrupoExcelController::class, 'import'])->name('grupos.excel.import')->middleware('can:crear grupos');
+    Route::post('/grupos/importar-excel', [GrupoExcelController::class, 'import'])->name('grupos.excel.import');
 });
 
 // =================== AJAX: edificio → plantas / salones ===================
