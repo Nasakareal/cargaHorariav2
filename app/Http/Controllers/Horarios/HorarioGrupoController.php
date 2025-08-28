@@ -19,18 +19,24 @@ class HorarioGrupoController extends Controller
     protected string $T_LABS = 'laboratorios';
 
     public function index(Request $request)
-    {
-        $q = trim((string) $request->get('q', ''));
-        $turno = trim((string) $request->get('turno', ''));
-        $grupos = DB::table('groups as g')
-        ->leftJoin('shifts as s', 's.shift_id', '=', 'g.turn_id')
-        ->when(DB::getSchemaBuilder()
-        ->hasColumn('groups','estado'), function($q2){ $q2->whereIn('g.estado', ['1','ACTIVO','activo']); })
-        ->when($q !== '', function ($qq) use ($q) { $qq->where('g.group_name', 'like', "%{$q}%"); })
-        ->when($turno !== '', function ($qq) use ($turno) { $qq->where('s.shift_name', $turno); })
-        ->select([ 'g.group_id', 'g.group_name', 's.shift_name as turno', ])
-        ->orderBy('g.group_name') ->paginate(20)
-        ->appends($request->query());
+        {
+            $q = trim((string) $request->get('q', ''));
+            $turno = trim((string) $request->get('turno', ''));
+            $grupos = DB::table('groups as g')
+            ->leftJoin('shifts as s', 's.shift_id', '=', 'g.turn_id')
+            ->when($q !== '', function ($qq) use ($q) {
+                $qq->where('g.group_name', 'like', "%{$q}%");
+            })
+            ->when($turno !== '', function ($qq) use ($turno) {
+                $qq->where('s.shift_name', $turno);
+            })
+            ->select([
+                'g.group_id',
+                'g.group_name',
+                's.shift_name as turno',
+            ])
+            ->orderBy('g.group_name')
+            ->get();
 
         return view('horarios.grupos.index', [ 'grupos' => $grupos, 'filtros' => ['q' => $q, 'turno' => $turno], ]);
     }
