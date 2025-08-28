@@ -34,8 +34,7 @@
               "RelativeToolTip": "routes\\web.php",
               "ViewState": "AgIAAE4AAAAAAAAAAAAkwEkBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-08-28T04:59:39.75Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-28T04:59:39.75Z"
             },
             {
               "$type": "Document",
@@ -45,7 +44,7 @@
               "RelativeDocumentMoniker": "app\\Http\\Requests\\GrupoExcelImportRequest.php",
               "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Requests\\GrupoExcelImportRequest.php",
               "RelativeToolTip": "app\\Http\\Requests\\GrupoExcelImportRequest.php",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAABAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAUAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
               "WhenOpened": "2025-08-28T04:52:21.093Z",
               "EditorCaption": ""
@@ -60,8 +59,7 @@
               "RelativeToolTip": "app\\Http\\Controllers\\GrupoExcelController.php",
               "ViewState": "AgIAACgAAAAAAAAAAAAkwOQAAAAiAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-08-28T04:33:21.468Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-28T04:33:21.468Z"
             }
           ]
         }
