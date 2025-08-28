@@ -18,15 +18,12 @@ class EliminarMateriasController extends Controller
         $q = trim((string) $request->get('q', ''));
 
         $profesores = DB::table('teachers')
-            ->when($q !== '', function ($qq) use ($q) {
-                $qq->where('teacher_name', 'like', "%{$q}%");
-                if (Schema::hasColumn('teachers', 'email')) {
-                    $qq->orWhere('email', 'like', "%{$q}%");
-                }
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where('teacher_name', 'like', "%{$q}%");
             })
             ->orderBy('teacher_name')
-            ->select('teacher_id', 'teacher_name', DB::raw(Schema::hasColumn('teachers','email') ? 'email' : "'' as email"))
-            ->paginate(15)
+            ->select('teacher_id', 'teacher_name')
+            ->paginate(9999)
             ->appends(['q' => $q]);
 
         return view('configuracion.eliminar_materias.index', compact('profesores', 'q'));
