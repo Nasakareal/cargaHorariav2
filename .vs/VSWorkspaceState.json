@@ -4,11 +4,9 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
-    "\\app\\Models",
-    "\\resources",
-    "\\resources\\views",
-    "\\resources\\views\\materias"
+    "\\app\\Http\\Requests",
+    "\\resources"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\GrupoExcelController.php",
+  "SelectedNode": "\\app\\Http\\Requests\\GrupoExcelImportRequest.php",
   "PreviewInSolutionExplorer": false
 }

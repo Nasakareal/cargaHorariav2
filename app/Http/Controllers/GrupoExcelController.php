@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\GrupoExcelImportRequest;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -20,6 +21,7 @@ class GrupoExcelController extends Controller
         ];
         $callback = function () use ($headers, $rows) {
             $FH = fopen('php://output', 'w');
+            // BOM UTF-8
             fprintf($FH, chr(0xEF).chr(0xBB).chr(0xBF));
             fputcsv($FH, $headers);
             foreach ($rows as $r) { fputcsv($FH, $r); }
@@ -32,31 +34,53 @@ class GrupoExcelController extends Controller
 
     public function import(GrupoExcelImportRequest $request)
     {
-        $file = $request->file('file')->getRealPath();
-        $reader = IOFactory::createReaderForFile($file);
-        $sheet = $reader->load($file)->getSheet(0);
-        $highestRow = $sheet->getHighestRow();
-        $highestCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($sheet->getHighestColumn());
+        $uploaded = $request->file('file');
+        $path     = $uploaded->getRealPath();
+        $ext      = strtolower($uploaded->getClientOriginalExtension());
 
-        if ($highestCol !== 9) {
+        // Lector según tipo
+        if (in_array($ext, ['csv','txt'])) {
+            $reader = IOFactory::createReader('Csv');
+            $reader->setInputEncoding('UTF-8');
+            $reader->setDelimiter(',');
+            $reader->setEnclosure('"');
+            $reader->setSheetIndex(0);
+        } else {
+            $reader = IOFactory::createReaderForFile($path);
+        }
+
+        $spreadsheet = $reader->load($path);
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // A arreglo (índices numéricos 0..N)
+        $rows = $sheet->toArray(null, true, true, false);
+        if (empty($rows)) {
+            return back()->with('error', 'El archivo está vacío.');
+        }
+
+        // Deben ser 9 columnas (No., Área, Abreviatura, Programa, Nivel, Cuatrimestre, Sufijo, Turno, Volumen)
+        $maxCols = 0;
+        foreach ($rows as $r) { $maxCols = max($maxCols, count($r)); }
+        if ($maxCols < 9) {
             return back()->with('error', 'El archivo no tiene el formato adecuado: deben ser exactamente 9 columnas.');
         }
 
         $errores = [];
         $creados = 0;
 
-        for ($row = 4; $row <= $highestRow; $row++) {
-            $data = [];
-            for ($c = 1; $c <= 9; $c++) {
-                $data[$c-1] = trim((string)$sheet->getCellByColumnAndRow($c, $row)->getCalculatedValue());
-            }
+        // Datos inician en la fila 4 (0-based => índice 3)
+        for ($i = 3; $i < count($rows); $i++) {
+            // Normaliza a 9 columnas
+            $data = array_pad(array_map(fn($v) => trim((string)$v), $rows[$i]), 9, '');
+
+            // Si la fila está completamente vacía, la saltamos
             if (implode('', $data) === '') { continue; }
 
             $area            = $data[1] ?? null;
             $abreviatura     = $data[2] ?? null;
             $program_name    = isset($data[3]) ? mb_strtoupper($data[3], 'UTF-8') : null;
             $nivel_educativo = $data[4] ?? null;
-            $term_number     = isset($data[5]) ? (int) $data[5] : null;
+            $term_number     = isset($data[5]) && is_numeric($data[5]) ? (int)$data[5] : null;
             $group_suffix    = $data[6] ?? null;
             $turn_name       = $data[7] ?? null;
             $volume          = $data[8] ?? null;
@@ -78,6 +102,7 @@ class GrupoExcelController extends Controller
                     $fallas[] = "El cuatrimestre {$term_number} no existe en la tabla de cuatrimestres (terms).";
                 }
             }
+
             if ($volume !== null && $volume !== '') {
                 if (!is_numeric($volume) || (int)$volume < 0) {
                     $fallas[] = "El volumen debe ser un número entero mayor o igual a 0.";
@@ -87,6 +112,7 @@ class GrupoExcelController extends Controller
             } else {
                 $volume = 0;
             }
+
             if (!$program_name) {
                 $fallas[] = "Falta el nombre del programa educativo.";
             }
@@ -99,7 +125,7 @@ class GrupoExcelController extends Controller
                 $fallas[] = "El programa '{$program_name}' no existe en la tabla programs.";
             }
 
-            $turn = null;
+            $turn    = null;
             $turn_id = null;
             if ($turn_name) {
                 $turn = DB::table('shifts')->select('shift_id')->where('shift_name', $turn_name)->first();
@@ -121,11 +147,10 @@ class GrupoExcelController extends Controller
             }
 
             if (!empty($fallas)) {
-                $errores[] = $this->msgFila($row, implode(' ', $fallas));
+                $errores[] = $this->msgFila($i + 1, implode(' ', $fallas));
                 continue;
             }
 
-            // -------- INSERCIÓN CON MANEJO DE ERRORES EN ESPAÑOL --------
             try {
                 DB::transaction(function () use (
                     $area_value, $nivel_educativo, $term_number, $volume, $turn_id,
@@ -142,11 +167,15 @@ class GrupoExcelController extends Controller
                         'estado'       => "1",
                     ]);
 
-                    DB::table('educational_levels')->insert([
-                        'level_name' => $nivel_educativo,
-                        'group_id'   => $group_id,
-                    ]);
+                    // Inserta nivel educativo solo si hay dato y existe la tabla
+                    if ($nivel_educativo !== null && $nivel_educativo !== '' && Schema::hasTable('educational_levels')) {
+                        DB::table('educational_levels')->insert([
+                            'level_name' => $nivel_educativo,
+                            'group_id'   => $group_id,
+                        ]);
+                    }
 
+                    // Vincula materias del programa/term a ese grupo
                     $subjects = DB::table('subjects')->select('subject_id')
                         ->where('program_id', $program_id)
                         ->where('term_id', $term_number)
@@ -164,7 +193,7 @@ class GrupoExcelController extends Controller
                     $creados++;
                 });
             } catch (\Throwable $e) {
-                $errores[] = $this->msgFila($row, $this->traducirExcepcion($e, [
+                $errores[] = $this->msgFila($i + 1, $this->traducirExcepcion($e, [
                     'group_name' => $group_name,
                     'term_id'    => $term_number,
                     'program'    => $program_name,
@@ -176,10 +205,9 @@ class GrupoExcelController extends Controller
         if (!empty($errores)) {
             return back()->with('error', "Se importaron {$creados} grupo(s), pero hubo errores:\n- " . implode("\n- ", $errores));
         }
+
         return back()->with('success', "Grupos registrados con éxito. Total creados: {$creados}");
     }
-
-    // ----------------- Helpers privados -----------------
 
     private function msgFila(int $row, string $texto): string
     {
@@ -191,7 +219,7 @@ class GrupoExcelController extends Controller
         $msg = $e->getMessage();
 
         if (str_contains($msg, 'SQLSTATE[23000]')) {
-            if (str_contains($msg, 'groups_ibfk_3') || str_contains($msg, '`term_id`') && str_contains($msg, '`terms`')) {
+            if (str_contains($msg, 'groups_ibfk_3') || (str_contains($msg, '`term_id`') && str_contains($msg, '`terms`'))) {
                 return "El cuatrimestre ({$ctx['term_id']}) no existe o no es válido para este grupo.";
             }
             if (str_contains($msg, 'Duplicate entry')) {

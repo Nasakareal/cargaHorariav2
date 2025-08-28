@@ -8,13 +8,13 @@ class GrupoExcelImportRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('crear grupos') ?? false;
+        return $this->user()?->can('importar grupos') ?? true;
     }
 
     public function rules(): array
     {
         return [
-            'file' => ['required','file','max:8192','mimes:xlsx,csv,txt'],
+            'file' => 'required|file|mimes:xlsx,xls,csv,txt|max:51200',sss
         ];
     }
 
@@ -22,8 +22,8 @@ class GrupoExcelImportRequest extends FormRequest
     {
         return [
             'file.required' => 'Selecciona un archivo.',
-            'file.mimes'    => 'Formato no válido. Usa .xlsx o .csv.',
-            'file.max'      => 'El archivo es demasiado grande (máx. 8MB).',
+            'file.mimes'    => 'Formato no válido (usa XLSX/XLS/CSV).',
+            'file.max'      => 'El archivo es demasiado grande.',
         ];
     }
 }
