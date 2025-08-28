@@ -305,8 +305,6 @@ class ProfesorController extends Controller
     }
 
     /* ====== Extra: Asignar Materias ====== */
-
-    /* ====================== VISTA ====================== */
     public function asignarMateriasForm(Request $request, $id)
     {
         $profesor = Teacher::find($id);
@@ -314,12 +312,43 @@ class ProfesorController extends Controller
             return redirect()->route('profesores.index')->with('error', 'El profesor no existe.');
         }
 
-        // Grupos disponibles (ajusta si tienes reglas específicas)
-        $grupos = DB::table('groups')
-            ->orderBy('group_name')
-            ->get(['group_id','group_name','program_id','term_id','turn_id']);
+        $q = DB::table('groups as g')
+            ->join('programs as p', 'p.program_id', '=', 'g.program_id')
+            ->whereExists(function ($q) {
+                $q->select(DB::raw(1))
+                  ->from('program_term_subjects as pts')
+                  ->whereColumn('pts.program_id', 'g.program_id')
+                  ->whereColumn('pts.term_id', 'g.term_id')
+                  ->whereNotExists(function ($qq) {
+                      $qq->select(DB::raw(1))
+                         ->from('teacher_subjects as ts')
+                         ->whereColumn('ts.subject_id', 'pts.subject_id')
+                         ->whereColumn('ts.group_id', 'g.group_id');
+                  });
+            });
 
-        // Materias ya asignadas al profe (si quieres precargar la caja derecha)
+        // Filtro por rol: Subdirector solo ve sus áreas
+        if (auth()->user()?->hasRole('Subdirector')) {
+            $areas = collect(explode(',', (string)(auth()->user()->area ?? '')))
+                ->map(fn($a) => trim($a))
+                ->filter()
+                ->values()
+                ->all();
+
+            if (!empty($areas)) {
+                $q->whereIn('p.area', $areas);
+            } else {
+                $grupos = collect();
+            }
+        }
+
+        // Si no fue seteado arriba (caso sin áreas), ejecuta el query
+        if (!isset($grupos)) {
+            $grupos = $q->orderBy('g.group_name')
+                ->get(['g.group_id','g.group_name','g.program_id','g.term_id','g.turn_id']);
+        }
+
+        // Materias ya asignadas al profe (para precargar la caja derecha si quieres)
         $materiasAsignadas = DB::table('teacher_subjects AS ts')
             ->join('subjects AS s', 's.subject_id', '=', 'ts.subject_id')
             ->where('ts.teacher_id', $id)
@@ -329,6 +358,7 @@ class ProfesorController extends Controller
 
         return view('profesores.asignar', compact('profesor','grupos','materiasAsignadas'));
     }
+
 
     /* ====================== AJAX: materias por grupo ====================== */
     public function materiasPorGrupo(Request $request, $id)
@@ -343,9 +373,14 @@ class ProfesorController extends Controller
             ->join('subjects AS s', 's.subject_id', '=', 'pts.subject_id')
             ->where('pts.program_id', $group->program_id)
             ->where('pts.term_id',    $group->term_id)
+            ->whereNotExists(function ($q) use ($groupId) {
+                $q->select(DB::raw(1))
+                  ->from('teacher_subjects as ts')
+                  ->whereColumn('ts.subject_id', 'pts.subject_id')
+                  ->where('ts.group_id', $groupId);
+            })
             ->select('s.subject_id','s.subject_name','s.weekly_hours')
-            ->distinct() // <- evita duplicados
-            // ->groupBy('s.subject_id','s.subject_name','s.weekly_hours') // alternativa si tu MySQL exige group by
+            ->distinct()
             ->orderBy('s.subject_name')
             ->get();
 
@@ -353,6 +388,9 @@ class ProfesorController extends Controller
         foreach ($materias as $m) {
             $html .= '<option value="'.$m->subject_id.'" data-hours="'.$m->weekly_hours.'">'
                    . e($m->subject_name) . '</option>';
+        }
+        if ($html === '') {
+            $html = '<option value="" disabled>— Sin materias disponibles —</option>';
         }
         return response($html, 200);
     }
@@ -421,6 +459,30 @@ class ProfesorController extends Controller
                         $errores[] = "La materia $m no tiene horas > 0";
                         continue;
                     }
+
+                    // Evita asignar algo que YA está tomado por otro profe
+                    $taken = DB::table('teacher_subjects')
+                        ->where('group_id', (int)$g)
+                        ->where('subject_id', (int)$m)
+                        ->exists();
+
+                    if ($taken) {
+                        $errores[] = "La materia {$m} del grupo {$g} ya está asignada a otro profesor.";
+                        continue;
+                    }
+
+                    $saTaken = DB::table('schedule_assignments')
+                        ->where('group_id', (int)$g)
+                        ->where('subject_id', (int)$m)
+                        ->whereNotNull('teacher_id')
+                        ->where('estado', 'activo')
+                        ->exists();
+
+                    if ($saTaken) {
+                        $errores[] = "La materia {$m} del grupo {$g} ya tiene horario asignado con otro profesor.";
+                        continue;
+                    }
+
 
                     $ok = $this->asignarMateriaConBloquesYAparteSiSobra(
                         $teacherId,

@@ -249,10 +249,10 @@ class TeacherSubjectApiController extends Controller
             return response()->json(['message' => 'Sin permiso'], 403);
         }
 
-        $groupId = (int) ($request->input('group_id'));
+        $groupId = (int) $request->input('group_id');
         if (!$groupId) return response()->json([]);
 
-        // Check de área según rol
+        // Checa permiso por área/grupo
         $permitidos = $this->idsGruposVisibles($user);
         if (!in_array($groupId, $permitidos, true)) {
             return response()->json(['message' => 'No tienes permiso para ver ese grupo'], 403);
@@ -265,6 +265,13 @@ class TeacherSubjectApiController extends Controller
             ->join('subjects AS s', 's.subject_id', '=', 'pts.subject_id')
             ->where('pts.program_id', $group->program_id)
             ->where('pts.term_id',    $group->term_id)
+            // ← SOLO materias no tomadas por ningún profe en ESTE grupo
+            ->whereNotExists(function ($q) use ($groupId) {
+                $q->select(DB::raw(1))
+                  ->from('teacher_subjects as ts')
+                  ->whereColumn('ts.subject_id', 'pts.subject_id')
+                  ->where('ts.group_id', $groupId);
+            })
             ->select('s.subject_id','s.subject_name','s.weekly_hours')
             ->distinct()
             ->orderBy('s.subject_name')
@@ -290,8 +297,8 @@ class TeacherSubjectApiController extends Controller
 
     private function gruposVisiblesPorUsuario($user)
     {
-        $isAdmin        = $user?->hasRole('Administrador') ?? false;
-        $isSubdirector  = $user?->hasRole('Subdirector')   ?? false;
+        $isAdmin       = $user?->hasRole('Administrador') ?? false;
+        $isSubdirector = $user?->hasRole('Subdirector')   ?? false;
 
         $q = DB::table('groups as g')
             ->join('programs as p', 'p.program_id', '=', 'g.program_id')
@@ -299,6 +306,19 @@ class TeacherSubjectApiController extends Controller
                 'g.group_id','g.group_name','g.program_id','g.term_id','g.turn_id',
                 'p.program_name','p.area'
             ])
+            // ← SOLO grupos con alguna materia aún libre
+            ->whereExists(function ($q) {
+                $q->select(DB::raw(1))
+                  ->from('program_term_subjects as pts')
+                  ->whereColumn('pts.program_id', 'g.program_id')
+                  ->whereColumn('pts.term_id', 'g.term_id')
+                  ->whereNotExists(function ($qq) {
+                      $qq->select(DB::raw(1))
+                         ->from('teacher_subjects as ts')
+                         ->whereColumn('ts.subject_id', 'pts.subject_id')
+                         ->whereColumn('ts.group_id', 'g.group_id');
+                  });
+            })
             ->orderBy('g.group_name');
 
         if ($isAdmin) {
@@ -308,13 +328,10 @@ class TeacherSubjectApiController extends Controller
         if ($isSubdirector) {
             $areas = collect(explode(',', (string)($user->area ?? '')))
                 ->map(fn($a)=>trim($a))->filter()->values()->all();
-
             if (empty($areas)) return collect([]);
-
             return $q->whereIn('p.area', $areas)->get();
         }
 
-        // Otros roles: por ahora no ven nada para asignación
         return collect([]);
     }
 
