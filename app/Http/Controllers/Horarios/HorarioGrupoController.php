@@ -58,7 +58,7 @@ class HorarioGrupoController extends Controller
         // 2) Config de disponibilidad
 
         $dispTurno = config("horarios.disponibles.$turno", []);
-        $dias = config("horarios.dias_semana.$turno", ['Lunes','Martes','Miércoles','Jueves','Viernes']);
+        $dias = config("horarios.dias_semana.$turno", ['Lunes','Martes','Miércoles','Jueves','Viernes', 'Sábado']);
 
         // 3) Asignaciones del grupo (dinámico por columnas reales)
 

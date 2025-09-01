@@ -8,9 +8,8 @@
     "\\resources",
     "\\resources\\views",
     "\\resources\\views\\horarios",
-    "\\resources\\views\\horarios\\profesores",
-    "\\resources\\views\\profesores"
+    "\\resources\\views\\horarios\\grupos"
   ],
-  "SelectedNode": "\\resources\\views\\profesores\\asignar.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Horarios\\HorarioProfesorController.php",
   "PreviewInSolutionExplorer": false
 }
