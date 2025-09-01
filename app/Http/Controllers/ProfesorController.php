@@ -396,106 +396,116 @@ class ProfesorController extends Controller
         $teacherId = (int) $id;
 
         $request->validate([
-            'materias_asignadas' => 'nullable|array',
-            'materias_asignadas.*' => 'integer',
-            'grupos_asignados'   => 'required|array|min:1',
-            'grupos_asignados.*' => 'integer',
+            'materias_asignadas'   => 'required|array|min:1',
+            'materias_asignadas.*' => ['regex:/^\d+\|\d+$/'],
+            'grupos_asignados'     => 'nullable|array',
+            'grupos_asignados.*'   => 'integer',
         ], [
-            'grupos_asignados.required' => 'Seleccione al menos un grupo.',
+            'materias_asignadas.required'   => 'Seleccione al menos una materia.',
+            'materias_asignadas.*.regex'    => 'Formato inválido en materias asignadas.',
         ]);
 
-        $materiaIds = $request->input('materias_asignadas', []);
-        $grupoIds   = array_filter($request->input('grupos_asignados', []), 'is_numeric');
-
-        if (!$teacherId || empty($grupoIds)) {
+        if (!$teacherId) {
             return back()->with('error', 'Faltan datos para asignar.');
         }
 
-        // Carga arrays de turnos/horarios (pon esto en config/horarios.php)
         $horarios_disponibles = config('horarios.disponibles', []);
         $dias_semana          = config('horarios.dias_semana', []);
+        $pairs = [];
+        foreach ($request->input('materias_asignadas', []) as $pairStr) {
+            [$sid, $gid] = array_map('intval', explode('|', $pairStr, 2));
+            if ($sid > 0 && $gid > 0) {
+                $pairs["{$sid}|{$gid}"] = ['subject_id' => $sid, 'group_id' => $gid];
+            }
+        }
+        if (empty($pairs)) {
+            return back()->with('error', 'No hay materias válidas para asignar.');
+        }
+
+        $subjectIds = array_values(array_unique(array_map(fn($p) => $p['subject_id'], $pairs)));
+        $rows = DB::table('subjects')
+            ->whereIn('subject_id', $subjectIds)
+            ->select('subject_id', 'weekly_hours')
+            ->get();
+        $mapHours = [];
+        foreach ($rows as $r) $mapHours[$r->subject_id] = (int) $r->weekly_hours;
 
         DB::beginTransaction();
 
         try {
-            // disponibilidad del profe
             $teacherAvailability = $this->cargarDisponibilidadProfesor($teacherId);
-
-            // horas por materia
-            if (!empty($materiaIds)) {
-                $rows = DB::table('subjects')
-                    ->whereIn('subject_id', $materiaIds)
-                    ->select('subject_id','weekly_hours')
-                    ->get();
-                $mapHours = [];
-                foreach ($rows as $r) $mapHours[$r->subject_id] = (int)$r->weekly_hours;
-            } else {
-                $mapHours = [];
-            }
 
             $errores = [];
 
-            foreach ($grupoIds as $g) {
-                foreach ($materiaIds as $m) {
-                    $wh = (int)($mapHours[$m] ?? 0);
-                    if ($wh <= 0) {
-                        $errores[] = "La materia $m no tiene horas > 0";
-                        continue;
-                    }
+            foreach ($pairs as $pair) {
+                $m = (int) $pair['subject_id'];
+                $g = (int) $pair['group_id'];
 
-                    // Evita asignar algo que YA está tomado por otro profe
-                    $taken = DB::table('teacher_subjects')
-                        ->where('group_id', (int)$g)
-                        ->where('subject_id', (int)$m)
-                        ->exists();
+                $wh = (int)($mapHours[$m] ?? 0);
+                if ($wh <= 0) {
+                    $errores[] = "La materia {$m} no tiene horas > 0";
+                    continue;
+                }
 
-                    if ($taken) {
-                        $errores[] = "La materia {$m} del grupo {$g} ya está asignada a otro profesor.";
-                        continue;
-                    }
+                $pertenece = DB::table('program_term_subjects as pts')
+                    ->join('groups as gg', 'gg.program_id', '=', 'pts.program_id')
+                    ->whereColumn('gg.term_id', 'pts.term_id')
+                    ->where('gg.group_id', $g)
+                    ->where('pts.subject_id', $m)
+                    ->exists();
+                if (!$pertenece) {
+                    $errores[] = "La materia {$m} no corresponde al plan del grupo {$g}.";
+                    continue;
+                }
 
-                    $saTaken = DB::table('schedule_assignments')
-                        ->where('group_id', (int)$g)
-                        ->where('subject_id', (int)$m)
-                        ->whereNotNull('teacher_id')
-                        ->where('estado', 'activo')
-                        ->exists();
+                $taken = DB::table('teacher_subjects')
+                    ->where('group_id', $g)
+                    ->where('subject_id', $m)
+                    ->exists();
+                if ($taken) {
+                    $errores[] = "La materia {$m} del grupo {$g} ya está asignada a otro profesor.";
+                    continue;
+                }
 
-                    if ($saTaken) {
-                        $errores[] = "La materia {$m} del grupo {$g} ya tiene horario asignado con otro profesor.";
-                        continue;
-                    }
+                $saTaken = DB::table('schedule_assignments')
+                    ->where('group_id', $g)
+                    ->where('subject_id', $m)
+                    ->whereNotNull('teacher_id')
+                    ->where('estado', 'activo')
+                    ->exists();
+                if ($saTaken) {
+                    $errores[] = "La materia {$m} del grupo {$g} ya tiene horario asignado con otro profesor.";
+                    continue;
+                }
 
+                $ok = $this->asignarMateriaConBloquesYAparteSiSobra(
+                    $teacherId,
+                    $m,
+                    $g,
+                    $wh,
+                    $errores,
+                    $horarios_disponibles,
+                    $dias_semana,
+                    $teacherAvailability
+                );
+                if (!$ok) {
+                    continue;
+                }
 
-                    $ok = $this->asignarMateriaConBloquesYAparteSiSobra(
-                        $teacherId,
-                        $m,
-                        (int) $g,
-                        $wh,
-                        $errores,
-                        $horarios_disponibles,
-                        $dias_semana,
-                        $teacherAvailability
-                    );
+                $exists = DB::table('teacher_subjects')
+                    ->where('teacher_id', $teacherId)
+                    ->where('subject_id', $m)
+                    ->where('group_id', $g)
+                    ->exists();
 
-                    if (!$ok) continue;
-
-                    // relación teacher_subjects (si no existe)
-                    $exists = DB::table('teacher_subjects')
-                        ->where('teacher_id', $teacherId)
-                        ->where('subject_id', $m)
-                        ->where('group_id', $g)
-                        ->exists();
-
-                    if (!$exists) {
-                        DB::table('teacher_subjects')->insert([
-                            'teacher_id'       => $teacherId,
-                            'subject_id'       => $m,
-                            'group_id'         => $g,
-                            'fyh_creacion'     => now(),
-                            'fyh_actualizacion'=> now(),
-                        ]);
-                    }
+                if (!$exists) {
+                    DB::table('teacher_subjects')->insert([
+                        'teacher_id'        => $teacherId,
+                        'subject_id'        => $m,
+                        'group_id'          => $g,
+                        'fyh_creacion'      => now(),
+                        'fyh_actualizacion' => now(),
+                    ]);
                 }
             }
 
@@ -504,7 +514,6 @@ class ProfesorController extends Controller
                 return back()->with('error', implode(' | ', $errores));
             }
 
-            // actualizar total de horas del profe
             $total = DB::table('teacher_subjects AS ts')
                 ->join('subjects AS s', 's.subject_id', '=', 'ts.subject_id')
                 ->where('ts.teacher_id', $teacherId)
@@ -513,11 +522,10 @@ class ProfesorController extends Controller
             DB::table('teachers')
                 ->where('teacher_id', $teacherId)
                 ->update([
-                    'hours'             => (int)$total,
+                    'hours'             => (int) $total,
                     'fyh_actualizacion' => now(),
                 ]);
 
-            // actividad
             ActividadGeneral::registrar('ASIGNAR', 'teacher_subjects', $teacherId, "Asignó materias/grupos al profe {$teacherId}");
 
             DB::commit();

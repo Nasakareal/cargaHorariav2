@@ -135,25 +135,25 @@
   const $gruposElegidos = document.getElementById('gruposElegidos');
   const $form           = document.getElementById('formAsignar');
 
-  function addHiddenGroup(groupId){
-    if ([...$hiddenGroups.querySelectorAll('input[name="grupos_asignados[]"]')]
-        .some(i => i.value === String(groupId))) return;
+  // ==== MODO GRUPO ÚNICO ====
+  function setSingleGroup(groupId){
+    // Limpia el “estado” anterior: inputs ocultos, chips y selects
+    $hiddenGroups.innerHTML = '';
+    $gruposElegidos.innerHTML = '';
+    $materiasDisp.innerHTML = '';
+    $materiasAsig.innerHTML = '';
+    calcTotal();
 
     const i = document.createElement('input');
     i.type  = 'hidden';
     i.name  = 'grupos_asignados[]';
     i.value = groupId;
     $hiddenGroups.appendChild(i);
+
     const chip = document.createElement('span');
     chip.className = 'badge bg-primary me-1';
-    chip.dataset.groupId = groupId;
     chip.textContent = ($gruposSelect.options[$gruposSelect.selectedIndex]?.text || ('Grupo '+groupId));
     $gruposElegidos.appendChild(chip);
-  }
-
-  function clearAsignadas(){
-    [...$materiasAsig.options].forEach(o => $materiasDisp.appendChild(o));
-    calcTotal();
   }
 
   function calcTotal(){
@@ -185,6 +185,11 @@
     .then(r => r.text())
     .then(html => {
       $materiasDisp.innerHTML = html;
+      [...$materiasDisp.options].forEach(o => {
+        if (o.disabled || !o.value) return;
+        const subjectId = String(o.value).split('|')[0];
+        o.value = subjectId + '|' + groupId;
+      });
     })
     .catch(() => { $materiasDisp.innerHTML = ''; });
   }
@@ -193,27 +198,8 @@
     const groupId = $gruposSelect.value;
     if (!groupId) return;
 
-    if ($materiasAsig.options.length > 0) {
-      Swal.fire({
-        title: '¿Eliminar materias asignadas?',
-        text: 'Ya tienes materias asignadas. ¿Quieres eliminarlas antes de seleccionar otro grupo?',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'No, cancelar',
-      }).then((res) => {
-        if (!res.isConfirmed) return;
-        $materiasAsig.innerHTML = '';
-        $totalHoras.value = 0;
-        $hiddenGroups.innerHTML = '';
-        $gruposElegidos.innerHTML = '';
-        addHiddenGroup(groupId);
-        cargarMateriasPorGrupo(groupId);
-      });
-    } else {
-      addHiddenGroup(groupId);
-      cargarMateriasPorGrupo(groupId);
-    }
+    setSingleGroup(groupId);
+    cargarMateriasPorGrupo(groupId);
   });
 
   document.getElementById('add_subject').addEventListener('click', () => {
@@ -252,3 +238,4 @@ Swal.fire({ icon:'warning', title:'Revisa los datos', html:`{!! implode('<br>', 
 </script>
 @endif
 @endsection
+
