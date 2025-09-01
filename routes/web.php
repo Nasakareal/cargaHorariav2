@@ -96,6 +96,7 @@ Route::prefix('profesores')->name('profesores.')->middleware('can:ver profesores
     Route::get('/{id}',        [ProfesorController::class,'show'])->name('show')->whereNumber('id');
     Route::delete('/{id}',     [ProfesorController::class,'destroy'])->middleware('can:eliminar profesores')->name('destroy')->whereNumber('id');
 });
+Route::get('/horarios/profesor/{profesor}/excel', [HorarioProfesorController::class, 'exportExcelProfesor'])->name('horarios.profesor.excel');
 
 // =================== Grupos ===================
 Route::prefix('grupos')->name('grupos.')->middleware('can:ver grupos')->group(function () {
@@ -108,6 +109,8 @@ Route::prefix('grupos')->name('grupos.')->middleware('can:ver grupos')->group(fu
     Route::delete('/{id}',    [GrupoController::class,'destroy'])->middleware('can:eliminar grupos')->name('destroy')->whereNumber('id');
     Route::get('/{id}/validar-salon/{classroom}', [GrupoController::class,'validarSalon'])->name('validar-salon')->middleware('can:editar grupos')->whereNumber('id')->whereNumber('classroom');
 });
+
+Route::get('/horarios/grupos/{grupo}/exportar-excel', [\App\Http\Controllers\Horarios\HorarioGrupoController::class, 'exportExcel'])->name('horarios.grupos.exportar-excel');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/grupos/plantilla-excel', [GrupoExcelController::class, 'template'])->name('grupos.excel.plantilla');

@@ -20,11 +20,11 @@ class EstadisticaController extends Controller
         'Lunes'      => 'B',
         'Martes'     => 'C',
         'Miércoles'  => 'D',
-        'Miercoles'  => 'D', // por si viene sin tilde
+        'Miercoles'  => 'D',
         'Jueves'     => 'E',
         'Viernes'    => 'F',
         'Sábado'     => 'G',
-        'Sabado'     => 'G', // por si viene sin tilde
+        'Sabado'     => 'G',
     ];
 
     /** Filas por hora (Profesor y Grupos “completos”) */

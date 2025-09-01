@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class HorarioGrupoController extends Controller
 {
@@ -72,9 +74,10 @@ class HorarioGrupoController extends Controller
         $rows = DB::table('schedule_assignments as s')
             ->leftJoin('subjects as m', 'm.subject_id','=','s.subject_id')
             ->leftJoin('teachers as t', 't.teacher_id','=','s.teacher_id')
+            ->leftJoin('labs as l', 'l.lab_id','=','s.lab_id')
             ->where('s.group_id', $grupo_id)
             ->when($schema->hasColumn('schedule_assignments','estado'), function($q){ $q->whereIn('s.estado', ['1','ACTIVO','activo']); })
-            ->selectRaw(" s.assignment_id, s.subject_id, {$materiaExpr} as materia, s.teacher_id, {$docenteExpr} as docente, {$selClassroom}, {$selLab}, {$selTipoEspacio}, s.schedule_day, s.start_time, s.end_time ") ->orderBy('s.start_time') ->get();
+            ->selectRaw(" s.assignment_id, s.subject_id, {$materiaExpr} as materia, s.teacher_id, {$docenteExpr} as docente, {$selClassroom}, {$selLab}, l.lab_name as lab_nombre, {$selTipoEspacio}, s.schedule_day, s.start_time, s.end_time ") ->orderBy('s.start_time') ->get();
 
         // 4) Rango de horas (min/max) y slots de 60 min
         [$minCfg, $maxCfg] = $this->boundsFromConfig($dispTurno, $dias);
@@ -91,7 +94,8 @@ class HorarioGrupoController extends Controller
         foreach ($rows as $r) { $diaCanon = $this->canonicalDay($r->schedule_day); if (!in_array($diaCanon, $dias, true)) continue;
         foreach ($horas as $hLabel) { [$hStart, $hEnd] = explode(' - ', $hLabel); $hStart .= ':00'; $hEnd .= ':00'; if (!$this->overlaps($hStart, $hEnd, $r->start_time, $r->end_time)) continue;
 
-        $espacio = !empty($r->lab_id) ? 'Lab '.$r->lab_id : (!empty($r->classroom_id) ? 'Aula '.$r->classroom_id : '—');
+        $espacio = !empty($r->lab_id)? ($r->lab_nombre ?: 'Laboratorio'): (!empty($r->classroom_id) ? 'Aula '.$r->classroom_id : '—');
+
         $doc = $r->docente ?: 'Sin profesor';
         $linea = e(($r->materia ?: 'Materia')) . ' — ' . e($espacio) . ' — ' . e($doc);
         $tabla[$hLabel][$diaCanon] = trim($tabla[$hLabel][$diaCanon]) === '' ? $linea : $tabla[$hLabel][$diaCanon] . '<br>' . $linea; } }
@@ -131,7 +135,107 @@ class HorarioGrupoController extends Controller
                                    COALESCE(a.nombre, a.name, CONCAT('Aula ', COALESCE(h.room_id, h.salon_id))) as aula_nombre, COALESCE(l.nombre, l.name, CONCAT('Lab ', COALESCE(h.lab_id, h.laboratorio_id))) as lab_nombre, /* indicador de laboratorio */ COALESCE(h.es_lab, h.is_lab, (CASE WHEN h.lab_id IS NOT NULL OR h.laboratorio_id IS NOT NULL THEN 1 ELSE 0 END)) as es_lab ") ->orderBy('dia_semana') ->orderBy('hora_inicio') ->get(); /**/ /* Mapea a eventos recurrentes de FullCalendar */ $events = $rows->map(function ($r) { $dow = $this->toFullCalendarDow((int) $r->dia_semana); $titulo = trim(($r->materia ?? 'Materia') . ($r->docente ? " • {$r->docente}" : '')); $espacio = (intval($r->es_lab) === 1) ? ($r->lab_nombre ?: 'Laboratorio') : ($r->aula_nombre ?: 'Aula'); return [ 'title' => $titulo, 'daysOfWeek' => [$dow], /** 0=domingo ... 6=sábado */ 'startTime' => substr($r->hora_inicio, 0, 8), /** HH:MM:SS */ 'endTime' => substr($r->hora_fin, 0, 8), 'startRecur' => null, /** opcional si quieres acotar un rango */ 'endRecur' => null, 'extendedProps' => [ 'subject_id' => $r->subject_id, 'teacher_id' => $r->teacher_id, 'es_lab' => intval($r->es_lab) === 1, 'espacio' => $espacio, 'aula_id' => $r->salon_id, 'laboratorio_id' => $r->laboratorio_id, ], ]; })->values(); return response()->json($events);
     }
 
-    /** ============================================================ * Helpers * ============================================================ */
+    public function exportExcel(int $grupo_id): BinaryFileResponse
+    {
+        $grupo = DB::table('groups')->where('group_id', $grupo_id)->first();
+        abort_unless($grupo, 404, 'Grupo no encontrado');
+
+        $rows = DB::table('schedule_assignments as sa')
+            ->join('subjects as s', 's.subject_id', '=', 'sa.subject_id')
+            ->leftJoin('teachers as t', 't.teacher_id', '=', 'sa.teacher_id')
+            ->leftJoin('classrooms as r', 'r.classroom_id', '=', 'sa.classroom_id')
+            ->leftJoin('labs as l', 'l.lab_id', '=', 'sa.lab_id')
+            ->where('sa.group_id', $grupo_id)
+            ->orderBy('sa.schedule_day')
+            ->orderBy('sa.start_time')
+            ->select([
+                'sa.schedule_day as dia',
+                'sa.start_time',
+                'sa.end_time',
+                's.subject_name',
+                't.teacher_name',
+                'r.classroom_name',
+                'l.lab_name',
+            ])
+            ->get();
+
+        // ===============================
+        // 1. Normalizamos días y horas
+        // ===============================
+        $dias = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+        $horas = [];
+        foreach ($rows as $r) {
+            $hIni = date('H:i', strtotime($r->start_time));
+            $hFin = date('H:i', strtotime($r->end_time));
+            $horas[] = "$hIni - $hFin";
+        }
+        $horas = array_values(array_unique($horas)); // horas únicas
+        sort($horas);
+
+        // ===============================
+        // 2. Construimos matriz [hora][día]
+        // ===============================
+        $tabla = [];
+        foreach ($horas as $h) {
+            foreach ($dias as $d) {
+                $tabla[$h][$d] = '';
+            }
+        }
+
+        foreach ($rows as $r) {
+            $hLabel = date('H:i', strtotime($r->start_time)) . ' - ' . date('H:i', strtotime($r->end_time));
+            $dia = ucfirst(strtolower($r->dia));
+
+            if (!in_array($hLabel, $horas) || !in_array($dia, $dias)) continue;
+
+            $contenido = $r->subject_name;
+            if (!empty($r->lab_name) || !empty($r->classroom_name)) {
+                $contenido .= ' — ' . ($r->lab_name ?: $r->classroom_name);
+            }
+            if (!empty($r->teacher_name)) {
+                $contenido .= ' — ' . $r->teacher_name;
+            } else {
+                $contenido .= ' — Sin profesor';
+            }
+
+            $tabla[$hLabel][$dia] = $contenido;
+        }
+
+        // ===============================
+        // 3. Escribimos en la plantilla
+        // ===============================
+        $templatePath = public_path('plantillagrupo.xlsx');
+        $spreadsheet = IOFactory::load($templatePath);
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $sheet->setCellValue('C3',  $grupo->group_name);
+
+
+        // Filas por hora
+        $fila = 6;
+        foreach ($horas as $h) {
+            $sheet->setCellValue("A{$fila}", $h);
+            $col = 'B';
+            foreach ($dias as $d) {
+                $sheet->setCellValue("{$col}{$fila}", $tabla[$h][$d]);
+                $col++;
+            }
+            $fila++;
+        }
+
+        // ===============================
+        // 4. Descargar
+        // ===============================
+        $fileName = 'Horario_'.$grupo->group_name.'_'.now()->format('Ymd_His').'.xlsx';
+        $filePath = storage_path("app/tmp/{$fileName}");
+        @mkdir(dirname($filePath), 0775, true);
+
+        IOFactory::createWriter($spreadsheet, 'Xlsx')->save($filePath);
+
+        return response()->download($filePath, $fileName)->deleteFileAfterSend(true);
+    }
+
+
     /** ===== Helpers ===== **/
     protected function canonicalDay(?string $d): string { $k = mb_strtolower(trim((string)$d), 'UTF-8');
     return match ($k) {

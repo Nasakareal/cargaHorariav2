@@ -5,10 +5,12 @@
     "\\app\\Http",
     "\\app\\Http\\Controllers",
     "\\app\\Http\\Controllers\\Horarios",
+    "\\config",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\profesores"
+    "\\resources\\views\\horarios",
+    "\\resources\\views\\horarios\\profesores"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Horarios\\HorarioGrupoController.php",
+  "SelectedNode": "\\resources\\views\\horarios\\profesores\\show.blade.php",
   "PreviewInSolutionExplorer": false
 }

@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class HorarioProfesorController extends Controller
 {
@@ -17,9 +19,6 @@ class HorarioProfesorController extends Controller
     protected string $T_AULAS    = 'salones';
     protected string $T_LABS     = 'laboratorios';
 
-    /** ============================================================
-     * GET /profesores → listado con buscador
-     * ============================================================ */
     public function index(Request $request)
     {
         $q = trim((string) $request->get('q', ''));
@@ -42,7 +41,6 @@ class HorarioProfesorController extends Controller
             })
             ->selectRaw("t.teacher_id, {$docenteExpr} as docente");
 
-        // orden alfabetico por el expr del nombre
         $profesores = $query->orderByRaw("$docenteExpr asc")
             ->paginate(20)
             ->appends($request->query());
@@ -53,14 +51,10 @@ class HorarioProfesorController extends Controller
         ]);
     }
 
-    /** ============================================================
-     * GET /profesores/{profesor_id} → grid horario del profesor
-     * ============================================================ */
     public function show(int $profesor_id)
     {
         $schema = DB::getSchemaBuilder();
 
-        // ===== tablas de espacios =====
         if (!$schema->hasTable($this->T_AULAS)) {
             if ($schema->hasTable('classrooms')) $this->T_AULAS = 'classrooms';
             else $this->T_AULAS = null;
@@ -71,7 +65,6 @@ class HorarioProfesorController extends Controller
             else $this->T_LABS = null;
         }
 
-        // ===== expr nombre docente =====
         $nameCols = array_values(array_filter(
             ['teacher_name','nombre_completo','full_name','name','nombre'],
             fn($c) => $schema->hasColumn($this->T_DOCENTES, $c)
@@ -80,7 +73,6 @@ class HorarioProfesorController extends Controller
             ? 'COALESCE('.implode(', ', array_map(fn($c)=>"t.$c", $nameCols)).')'
             : "''";
 
-        // docente
         $profesor = DB::table($this->T_DOCENTES.' as t')
             ->where('t.teacher_id', $profesor_id)
             ->selectRaw("t.teacher_id, {$docenteExpr} as docente")
@@ -88,7 +80,6 @@ class HorarioProfesorController extends Controller
 
         abort_unless($profesor, 404, 'Profesor no encontrado');
 
-        // ===== expr nombre materia/grupo =====
         $subCols = array_values(array_filter(
             ['subject_name','nombre','name'],
             fn($c) => $schema->hasColumn($this->T_MATERIAS, $c)
@@ -105,7 +96,6 @@ class HorarioProfesorController extends Controller
             ? 'COALESCE('.implode(', ', array_map(fn($c)=>"g.$c", $grpCols)).')'
             : "''";
 
-        // ===== IDs/nombres de AULA/LAB =====
         $aulaIdCol = null; $aulaExpr = 'NULL';
         if ($this->T_AULAS) {
             foreach (['classroom_id','salon_id','id'] as $c) {
@@ -134,7 +124,6 @@ class HorarioProfesorController extends Controller
             if ($labNames) $labExpr = 'COALESCE('.implode(', ', $labNames).')';
         }
 
-        // ===== columnas existentes en schedule_assignments (h.*) =====
         $hasTeacher   = $schema->hasColumn($this->T_HORARIOS,'teacher_id');
         $hasSubject   = $schema->hasColumn($this->T_HORARIOS,'subject_id');
         $hasGroup     = $schema->hasColumn($this->T_HORARIOS,'group_id');
@@ -144,7 +133,6 @@ class HorarioProfesorController extends Controller
         $hasStart     = $schema->hasColumn($this->T_HORARIOS,'start_time');
         $hasEnd       = $schema->hasColumn($this->T_HORARIOS,'end_time');
 
-        // expresiones (solo con columnas que sí existen)
         $hTeacherExpr = $hasTeacher   ? 'h.teacher_id'   : 'NULL';
         $hSubjectExpr = $hasSubject   ? 'h.subject_id'   : 'NULL';
         $hGroupExpr   = $hasGroup     ? 'h.group_id'     : 'NULL';
@@ -154,7 +142,6 @@ class HorarioProfesorController extends Controller
         $hStartExpr   = $hasStart     ? 'h.start_time'   : 'NULL';
         $hEndExpr     = $hasEnd       ? 'h.end_time'     : 'NULL';
 
-        // ===== query principal =====
         $rows = DB::table($this->T_HORARIOS.' as h')
             ->when($hasSubject, function($q) use ($hSubjectExpr) {
                 $q->leftJoin($this->T_MATERIAS.' as m', function ($j) use ($hSubjectExpr) {
@@ -178,7 +165,7 @@ class HorarioProfesorController extends Controller
             })
             ->where(function($w) use ($profesor_id, $hasTeacher) {
                 if ($hasTeacher) $w->where('h.teacher_id', $profesor_id);
-                else $w->whereRaw('1=0'); // por si acaso
+                else $w->whereRaw('1=0');
             })
             ->when($schema->hasColumn($this->T_HORARIOS, 'estado'), function($q){
                 $q->whereIn('h.estado', ['1','ACTIVO','activo']);
@@ -206,12 +193,8 @@ class HorarioProfesorController extends Controller
             ->orderBy('hora_inicio')
             ->get();
 
-        // ===== SIEMPRE lunes a sábado, 07:00–20:00 =====
         $dias  = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-        $horas = $this->buildHourSlots('07:00:00', '20:00:00', 60); // 07-08 ... 19-20
-
-
-        // ===== matriz [hora][día] => HTML =====
+        $horas = $this->buildHourSlots('07:00:00', '20:00:00', 60);
         $tabla = [];
         foreach ($horas as $hLabel) foreach ($dias as $d) { $tabla[$hLabel][$d] = ''; }
 
@@ -236,7 +219,6 @@ class HorarioProfesorController extends Controller
             }
         }
 
-        // ===== selector de profesores =====
         $profesores = DB::table($this->T_DOCENTES.' as t')
             ->selectRaw("t.teacher_id, {$docenteExpr} as docente")
             ->orderByRaw("$docenteExpr asc")
@@ -251,11 +233,6 @@ class HorarioProfesorController extends Controller
         ]);
     }
 
-
-
-    /** ============================================================
-     * GET /profesores/{profesor_id}/eventos → feed JSON FullCalendar
-     * ============================================================ */
     public function eventos(int $profesor_id)
     {
         $schema = DB::getSchemaBuilder();
@@ -322,7 +299,7 @@ class HorarioProfesorController extends Controller
 
             return [
                 'title'      => trim(($r->materia ?? 'Materia') . ($r->grupo ? " • {$r->grupo}" : '')),
-                'daysOfWeek' => [$dow], // 0=domingo ... 6=sábado
+                'daysOfWeek' => [$dow],
                 'startTime'  => substr($r->hora_inicio, 0, 8),
                 'endTime'    => substr($r->hora_fin,    0, 8),
                 'extendedProps' => [
@@ -339,12 +316,100 @@ class HorarioProfesorController extends Controller
         return response()->json($events);
     }
 
+    public function exportExcelProfesor(int $profesor_id): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        $profesor = DB::table('teachers')->where('teacher_id', $profesor_id)->first();
+        abort_unless($profesor, 404, 'Profesor no encontrado');
+
+        $rows = DB::table('schedule_assignments as sa')
+            ->join('subjects as s', 's.subject_id', '=', 'sa.subject_id')
+            ->join('groups as g', 'g.group_id', '=', 'sa.group_id')
+            ->leftJoin('classrooms as r', 'r.classroom_id', '=', 'sa.classroom_id')
+            ->leftJoin('labs as l', 'l.lab_id', '=', 'sa.lab_id')
+            ->where('sa.teacher_id', $profesor_id)
+            ->orderBy('sa.schedule_day')
+            ->orderBy('sa.start_time')
+            ->select([
+                'sa.schedule_day as dia',
+                'sa.start_time',
+                'sa.end_time',
+                's.subject_name',
+                'g.group_name',
+                'r.classroom_name',
+                'l.lab_name',
+            ])
+            ->get();
+
+        $dias = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+        $horas = [];
+        foreach ($rows as $r) {
+            $hIni = date('H:i', strtotime($r->start_time));
+            $hFin = date('H:i', strtotime($r->end_time));
+            $horas[] = "$hIni - $hFin";
+        }
+        $horas = array_values(array_unique($horas));
+        sort($horas);
+
+        $tabla = [];
+        foreach ($horas as $h) {
+            foreach ($dias as $d) {
+                $tabla[$h][$d] = '';
+            }
+        }
+
+        foreach ($rows as $r) {
+            $hLabel = date('H:i', strtotime($r->start_time)) . ' - ' . date('H:i', strtotime($r->end_time));
+            $dia = ucfirst(strtolower($r->dia));
+            if (!in_array($hLabel, $horas) || !in_array($dia, $dias)) continue;
+
+            $contenido = $r->subject_name . ' — ' . $r->group_name;
+            if (!empty($r->lab_name) || !empty($r->classroom_name)) {
+                $contenido .= ' — ' . ($r->lab_name ?: $r->classroom_name);
+            }
+
+            $tabla[$hLabel][$dia] = $contenido;
+        }
+
+        // ===============================
+        // Escribimos en la plantilla
+        // ===============================
+        $templatePath = public_path('plantilla.xlsx');
+        $spreadsheet = IOFactory::load($templatePath);
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // encabezado
+        $sheet->setCellValue('C3',  $profesor->teacher_name);
+
+        // filas por hora
+        $fila = 6;
+        foreach ($horas as $h) {
+            $sheet->setCellValue("A{$fila}", $h);
+            $col = 'B';
+            foreach ($dias as $d) {
+                $sheet->setCellValue("{$col}{$fila}", $tabla[$h][$d]);
+                $col++;
+            }
+            $fila++;
+        }
+
+        // ===============================
+        // Descargar
+        // ===============================
+        $fileName = 'Horario_'.$profesor->teacher_name.'_'.now()->format('Ymd_His').'.xlsx';
+        $filePath = storage_path("app/tmp/{$fileName}");
+        @mkdir(dirname($filePath), 0775, true);
+
+        IOFactory::createWriter($spreadsheet, 'Xlsx')->save($filePath);
+
+        return response()->download($filePath, $fileName)->deleteFileAfterSend(true);
+    }
+
+
     /** ================= Helpers ================= */
 
     protected function canonicalDay($d): string
     {
         $k = mb_strtolower(trim((string)$d), 'UTF-8');
-        // si viene numérico: 1=lunes ... 7=domingo
         if (is_numeric($k)) {
             $n = intval($k) % 7;
             return [0=>'Domingo',1=>'Lunes',2=>'Martes',3=>'Miércoles',4=>'Jueves',5=>'Viernes',6=>'Sábado'][$n];
@@ -404,7 +469,6 @@ class HorarioProfesorController extends Controller
     {
         if (is_numeric($v)) {
             $n = intval($v);
-            // 1..7 (lun..dom) → 1..0
             return match ($n % 7) {
                 1 => 1, 2 => 2, 3 => 3, 4 => 4, 5 => 5, 6 => 6, 0 => 0,
             };

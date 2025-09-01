@@ -26,6 +26,9 @@
       </form>
     </div>
     <div class="col-md-6 d-flex align-items-end justify-content-end">
+    <a href="{{ route('horarios.profesor.excel', $profesor->teacher_id) }}" class="btn btn-success ms-2">
+      Descargar Excel
+    </a>
       <a href="{{ route('horarios.profesores.index') }}" class="btn btn-secondary">
         Volver
       </a>

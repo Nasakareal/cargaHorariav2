@@ -8,7 +8,6 @@
 
 @section('content')
 @php
-  // Helper local: ¿la hora (HH:MM) cae dentro de los rangos del día?
   $estaDentro = function(string $turno, string $dia, string $horaHHMM, array $dispTurno): bool {
       if (!isset($dispTurno[$dia])) return false;
       $hora = \Carbon\Carbon::createFromFormat('H:i:s', $horaHHMM.':00');
@@ -38,6 +37,10 @@
       </form>
     </div>
     <div class="col-md-6 d-flex align-items-end justify-content-end">
+    <a href="{{ route('horarios.grupos.exportar-excel', $grupo->group_id) }}" class="btn btn-success ms-2">
+      Descargar Excel
+    </a>
+
       <a href="{{ route('horarios.grupos.index') }}" class="btn btn-secondary">
         Volver
       </a>
@@ -127,7 +130,6 @@ $(function () {
 
   function limpiar(data) {
     if (typeof data !== 'string') return data;
-    // <br> -> salto de línea, quitar &nbsp; y etiquetas
     data = data.replace(/<br\s*\/?>/gi, '\n').replace(/\u00A0/g, ' ');
     return $('<div>').html(data).text().replace(/[ \t]+\n/g, '\n').replace(/\s+/g,' ').trim();
   }
