@@ -137,7 +137,13 @@ class HorarioGrupoController extends Controller
 
     public function exportExcel(int $grupo_id): BinaryFileResponse
     {
-        $grupo = DB::table('groups')->where('group_id', $grupo_id)->first();
+        // Traemos también el programa
+        $grupo = DB::table('groups as g')
+            ->leftJoin('programs as p', 'p.program_id', '=', 'g.program_id')
+            ->where('g.group_id', $grupo_id)
+            ->select('g.group_id','g.group_name','p.program_name')
+            ->first();
+
         abort_unless($grupo, 404, 'Grupo no encontrado');
 
         $rows = DB::table('schedule_assignments as sa')
@@ -164,13 +170,13 @@ class HorarioGrupoController extends Controller
         // ===============================
         $dias = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
         $horas = [];
-        foreach ($rows as $r) {
-            $hIni = date('H:i', strtotime($r->start_time));
-            $hFin = date('H:i', strtotime($r->end_time));
-            $horas[] = "$hIni - $hFin";
+        $t = \Carbon\Carbon::createFromFormat('H:i', '07:00');
+        $end = \Carbon\Carbon::createFromFormat('H:i', '20:00');
+        while ($t < $end) {
+            $nxt = $t->copy()->addHour();
+            $horas[] = $t->format('H:i') . ' - ' . $nxt->format('H:i');
+            $t = $nxt;
         }
-        $horas = array_values(array_unique($horas)); // horas únicas
-        sort($horas);
 
         // ===============================
         // 2. Construimos matriz [hora][día]
@@ -208,10 +214,9 @@ class HorarioGrupoController extends Controller
         $spreadsheet = IOFactory::load($templatePath);
         $sheet = $spreadsheet->getActiveSheet();
 
-        $sheet->setCellValue('C3',  $grupo->group_name);
+        $sheet->setCellValue('G3', $grupo->group_name);
+        $sheet->setCellValue('C3', $grupo->program_name);
 
-
-        // Filas por hora
         $fila = 6;
         foreach ($horas as $h) {
             $sheet->setCellValue("A{$fila}", $h);
@@ -234,6 +239,7 @@ class HorarioGrupoController extends Controller
 
         return response()->download($filePath, $fileName)->deleteFileAfterSend(true);
     }
+
 
 
     /** ===== Helpers ===== **/

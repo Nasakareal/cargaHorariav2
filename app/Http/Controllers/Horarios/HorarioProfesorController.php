@@ -342,13 +342,13 @@ class HorarioProfesorController extends Controller
 
         $dias = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
         $horas = [];
-        foreach ($rows as $r) {
-            $hIni = date('H:i', strtotime($r->start_time));
-            $hFin = date('H:i', strtotime($r->end_time));
-            $horas[] = "$hIni - $hFin";
+        $t = \Carbon\Carbon::createFromFormat('H:i', '07:00');
+        $end = \Carbon\Carbon::createFromFormat('H:i', '20:00');
+        while ($t < $end) {
+            $nxt = $t->copy()->addHour();
+            $horas[] = $t->format('H:i') . ' - ' . $nxt->format('H:i');
+            $t = $nxt;
         }
-        $horas = array_values(array_unique($horas));
-        sort($horas);
 
         $tabla = [];
         foreach ($horas as $h) {

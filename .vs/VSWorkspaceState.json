@@ -11,6 +11,6 @@
     "\\resources\\views\\horarios",
     "\\resources\\views\\horarios\\profesores"
   ],
-  "SelectedNode": "\\resources\\views\\horarios\\profesores\\show.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\Horarios\\HorarioProfesorController.php",
   "PreviewInSolutionExplorer": false
 }
