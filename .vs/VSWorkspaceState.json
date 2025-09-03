@@ -8,8 +8,8 @@
     "\\resources",
     "\\resources\\views",
     "\\resources\\views\\horarios",
-    "\\resources\\views\\horarios\\grupos"
+    "\\resources\\views\\horarios\\profesores"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\Horarios\\HorarioProfesorController.php",
+  "SelectedNode": "\\resources\\views\\horarios\\profesores\\show.blade.php",
   "PreviewInSolutionExplorer": false
 }

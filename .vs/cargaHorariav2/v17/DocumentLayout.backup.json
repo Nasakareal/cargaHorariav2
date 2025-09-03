@@ -3,8 +3,16 @@
   "WorkspaceRootPath": "C:\\wamp64\\www\\cargaHorariav2\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\ProfesorController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\ProfesorController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\horarios\\grupos\\show.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:resources\\views\\horarios\\grupos\\show.blade.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Horarios\\HorarioGrupoController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\Horarios\\HorarioGrupoController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Horarios\\HorarioProfesorController.php||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:app\\Http\\Controllers\\Horarios\\HorarioProfesorController.php||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -14,19 +22,45 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 1,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "ProfesorController.php",
-              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\ProfesorController.php",
-              "RelativeDocumentMoniker": "app\\Http\\Controllers\\ProfesorController.php",
-              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\ProfesorController.php",
-              "RelativeToolTip": "app\\Http\\Controllers\\ProfesorController.php",
-              "ViewState": "AgIAAP4BAAAAAAAAAAAkwAMCAAAAAAAAAAAAAA==",
+              "DocumentIndex": 2,
+              "Title": "HorarioProfesorController.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Horarios\\HorarioProfesorController.php",
+              "RelativeDocumentMoniker": "app\\Http\\Controllers\\Horarios\\HorarioProfesorController.php",
+              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Horarios\\HorarioProfesorController.php",
+              "RelativeToolTip": "app\\Http\\Controllers\\Horarios\\HorarioProfesorController.php",
+              "ViewState": "AgIAAKkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
-              "WhenOpened": "2025-09-01T19:17:29.28Z",
+              "WhenOpened": "2025-09-01T19:51:40.373Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "show.blade.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\horarios\\grupos\\show.blade.php",
+              "RelativeDocumentMoniker": "resources\\views\\horarios\\grupos\\show.blade.php",
+              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\resources\\views\\horarios\\grupos\\show.blade.php",
+              "RelativeToolTip": "resources\\views\\horarios\\grupos\\show.blade.php",
+              "ViewState": "AgIAADUAAAAAAAAAAAAkwIwAAAAUAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2025-09-01T19:50:54.508Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "HorarioGrupoController.php",
+              "DocumentMoniker": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Horarios\\HorarioGrupoController.php",
+              "RelativeDocumentMoniker": "app\\Http\\Controllers\\Horarios\\HorarioGrupoController.php",
+              "ToolTip": "C:\\wamp64\\www\\cargaHorariav2\\app\\Http\\Controllers\\Horarios\\HorarioGrupoController.php",
+              "RelativeToolTip": "app\\Http\\Controllers\\Horarios\\HorarioGrupoController.php",
+              "ViewState": "AgIAABgAAAAAAAAAAAAAADQAAAAWAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002338|",
+              "WhenOpened": "2025-09-01T19:50:39.659Z",
               "EditorCaption": ""
             }
           ]

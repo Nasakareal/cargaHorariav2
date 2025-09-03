@@ -51,187 +51,226 @@ class HorarioProfesorController extends Controller
         ]);
     }
 
-    public function show(int $profesor_id)
-    {
-        $schema = DB::getSchemaBuilder();
+public function show(int $profesor_id)
+{
+    $schema = DB::getSchemaBuilder();
 
-        if (!$schema->hasTable($this->T_AULAS)) {
-            if ($schema->hasTable('classrooms')) $this->T_AULAS = 'classrooms';
-            else $this->T_AULAS = null;
-        }
-        if (!$schema->hasTable($this->T_LABS)) {
-            if     ($schema->hasTable('labs'))          $this->T_LABS = 'labs';
-            elseif ($schema->hasTable('laboratories'))  $this->T_LABS = 'laboratories';
-            else $this->T_LABS = null;
-        }
-
-        $nameCols = array_values(array_filter(
-            ['teacher_name','nombre_completo','full_name','name','nombre'],
-            fn($c) => $schema->hasColumn($this->T_DOCENTES, $c)
-        ));
-        $docenteExpr = $nameCols
-            ? 'COALESCE('.implode(', ', array_map(fn($c)=>"t.$c", $nameCols)).')'
-            : "''";
-
-        $profesor = DB::table($this->T_DOCENTES.' as t')
-            ->where('t.teacher_id', $profesor_id)
-            ->selectRaw("t.teacher_id, {$docenteExpr} as docente")
-            ->first();
-
-        abort_unless($profesor, 404, 'Profesor no encontrado');
-
-        $subCols = array_values(array_filter(
-            ['subject_name','nombre','name'],
-            fn($c) => $schema->hasColumn($this->T_MATERIAS, $c)
-        ));
-        $materiaExpr = $subCols
-            ? 'COALESCE('.implode(', ', array_map(fn($c)=>"m.$c", $subCols)).')'
-            : "''";
-
-        $grpCols = array_values(array_filter(
-            ['group_name','nombre','name'],
-            fn($c) => $schema->hasColumn($this->T_GRUPOS, $c)
-        ));
-        $grupoExpr = $grpCols
-            ? 'COALESCE('.implode(', ', array_map(fn($c)=>"g.$c", $grpCols)).')'
-            : "''";
-
-        $aulaIdCol = null; $aulaExpr = 'NULL';
-        if ($this->T_AULAS) {
-            foreach (['classroom_id','salon_id','id'] as $c) {
-                if ($schema->hasColumn($this->T_AULAS, $c)) { $aulaIdCol = $c; break; }
-            }
-            $aulaNames = array_filter([
-                $schema->hasColumn($this->T_AULAS,'classroom_name') ? 'a.classroom_name' : null,
-                $schema->hasColumn($this->T_AULAS,'nombre')         ? 'a.nombre'         : null,
-                $schema->hasColumn($this->T_AULAS,'name')           ? 'a.name'           : null,
-                $schema->hasColumn($this->T_AULAS,'room_name')      ? 'a.room_name'      : null,
-            ]);
-            if ($aulaNames) $aulaExpr = 'COALESCE('.implode(', ', $aulaNames).')';
-        }
-
-        $labIdCol = null; $labExpr = 'NULL';
-        if ($this->T_LABS) {
-            foreach (['lab_id','laboratorio_id','laboratory_id','id'] as $c) {
-                if ($schema->hasColumn($this->T_LABS, $c)) { $labIdCol = $c; break; }
-            }
-            $labNames = array_filter([
-                $schema->hasColumn($this->T_LABS,'lab_name')         ? 'l.lab_name'         : null,
-                $schema->hasColumn($this->T_LABS,'laboratory_name')  ? 'l.laboratory_name'  : null,
-                $schema->hasColumn($this->T_LABS,'nombre')           ? 'l.nombre'           : null,
-                $schema->hasColumn($this->T_LABS,'name')             ? 'l.name'             : null,
-            ]);
-            if ($labNames) $labExpr = 'COALESCE('.implode(', ', $labNames).')';
-        }
-
-        $hasTeacher   = $schema->hasColumn($this->T_HORARIOS,'teacher_id');
-        $hasSubject   = $schema->hasColumn($this->T_HORARIOS,'subject_id');
-        $hasGroup     = $schema->hasColumn($this->T_HORARIOS,'group_id');
-        $hasClassroom = $schema->hasColumn($this->T_HORARIOS,'classroom_id');
-        $hasLab       = $schema->hasColumn($this->T_HORARIOS,'lab_id');
-        $hasDay       = $schema->hasColumn($this->T_HORARIOS,'schedule_day');
-        $hasStart     = $schema->hasColumn($this->T_HORARIOS,'start_time');
-        $hasEnd       = $schema->hasColumn($this->T_HORARIOS,'end_time');
-
-        $hTeacherExpr = $hasTeacher   ? 'h.teacher_id'   : 'NULL';
-        $hSubjectExpr = $hasSubject   ? 'h.subject_id'   : 'NULL';
-        $hGroupExpr   = $hasGroup     ? 'h.group_id'     : 'NULL';
-        $hRoomExpr    = $hasClassroom ? 'h.classroom_id' : 'NULL';
-        $hLabExpr     = $hasLab       ? 'h.lab_id'       : 'NULL';
-        $hDayExpr     = $hasDay       ? 'h.schedule_day' : 'NULL';
-        $hStartExpr   = $hasStart     ? 'h.start_time'   : 'NULL';
-        $hEndExpr     = $hasEnd       ? 'h.end_time'     : 'NULL';
-
-        $rows = DB::table($this->T_HORARIOS.' as h')
-            ->when($hasSubject, function($q) use ($hSubjectExpr) {
-                $q->leftJoin($this->T_MATERIAS.' as m', function ($j) use ($hSubjectExpr) {
-                    $j->on('m.subject_id', '=', DB::raw($hSubjectExpr));
-                });
-            })
-            ->when($hasGroup, function($q) use ($hGroupExpr) {
-                $q->leftJoin($this->T_GRUPOS.' as g', function ($j) use ($hGroupExpr) {
-                    $j->on('g.group_id', '=', DB::raw($hGroupExpr));
-                });
-            })
-            ->when($this->T_AULAS && $aulaIdCol && $hasClassroom, function($q) use ($aulaIdCol, $hRoomExpr) {
-                $q->leftJoin($this->T_AULAS.' as a', function ($j) use ($aulaIdCol, $hRoomExpr) {
-                    $j->on("a.$aulaIdCol", '=', DB::raw($hRoomExpr));
-                });
-            })
-            ->when($this->T_LABS && $labIdCol && $hasLab, function($q) use ($labIdCol, $hLabExpr) {
-                $q->leftJoin($this->T_LABS.' as l', function ($j) use ($labIdCol, $hLabExpr) {
-                    $j->on("l.$labIdCol", '=', DB::raw($hLabExpr));
-                });
-            })
-            ->where(function($w) use ($profesor_id, $hasTeacher) {
-                if ($hasTeacher) $w->where('h.teacher_id', $profesor_id);
-                else $w->whereRaw('1=0');
-            })
-            ->when($schema->hasColumn($this->T_HORARIOS, 'estado'), function($q){
-                $q->whereIn('h.estado', ['1','ACTIVO','activo']);
-            })
-            ->selectRaw("
-                h.*,
-                {$hSubjectExpr}  as subject_id,
-                {$hTeacherExpr}  as teacher_id,
-                {$hGroupExpr}    as group_id,
-                {$hRoomExpr}     as classroom_id,
-                {$hLabExpr}      as lab_id,
-
-                {$hDayExpr}      as dia_semana,
-                {$hStartExpr}    as hora_inicio,
-                {$hEndExpr}      as hora_fin,
-
-                {$materiaExpr}   as materia,
-                {$grupoExpr}     as grupo,
-                {$aulaExpr}      as aula_nombre,
-                {$labExpr}       as lab_nombre,
-
-                (CASE WHEN {$hLabExpr} IS NOT NULL THEN 1 ELSE 0 END) as es_lab
-            ")
-            ->orderBy('dia_semana')
-            ->orderBy('hora_inicio')
-            ->get();
-
-        $dias  = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-        $horas = $this->buildHourSlots('07:00:00', '20:00:00', 60);
-        $tabla = [];
-        foreach ($horas as $hLabel) foreach ($dias as $d) { $tabla[$hLabel][$d] = ''; }
-
-        foreach ($rows as $r) {
-            $diaCanon = $this->canonicalDay($r->dia_semana);
-            if (!in_array($diaCanon, $dias, true)) continue;
-
-            foreach ($horas as $hLabel) {
-                [$hStart, $hEnd] = explode(' - ', $hLabel);
-                $hStart .= ':00'; $hEnd .= ':00';
-                if (!$this->overlaps($hStart, $hEnd, $r->hora_inicio, $r->hora_fin)) continue;
-
-                $espacio = (intval($r->es_lab) === 1)
-                    ? ($r->lab_nombre ?: 'Laboratorio')
-                    : ($r->aula_nombre ?: 'Aula');
-
-                $linea = e(($r->materia ?: 'Materia')) . ' — ' . e(($r->grupo ?: 'Grupo')) . ' — ' . e($espacio);
-
-                $tabla[$hLabel][$diaCanon] = trim($tabla[$hLabel][$diaCanon]) === ''
-                    ? $linea
-                    : $tabla[$hLabel][$diaCanon] . '<br>' . $linea;
-            }
-        }
-
-        $profesores = DB::table($this->T_DOCENTES.' as t')
-            ->selectRaw("t.teacher_id, {$docenteExpr} as docente")
-            ->orderByRaw("$docenteExpr asc")
-            ->get();
-
-        return view('horarios.profesores.show', [
-            'profesor'   => $profesor,
-            'dias'       => $dias,
-            'horas'      => $horas,
-            'tabla'      => $tabla,
-            'profesores' => $profesores,
-        ]);
+    if (!$schema->hasTable($this->T_AULAS)) {
+        if ($schema->hasTable('classrooms')) $this->T_AULAS = 'classrooms';
+        else $this->T_AULAS = null;
     }
+    if (!$schema->hasTable($this->T_LABS)) {
+        if     ($schema->hasTable('labs'))          $this->T_LABS = 'labs';
+        elseif ($schema->hasTable('laboratories'))  $this->T_LABS = 'laboratories';
+        else $this->T_LABS = null;
+    }
+
+    $nameCols = array_values(array_filter(
+        ['teacher_name','nombre_completo','full_name','name','nombre'],
+        fn($c) => $schema->hasColumn($this->T_DOCENTES, $c)
+    ));
+    $docenteExpr = $nameCols
+        ? 'COALESCE('.implode(', ', array_map(fn($c)=>"t.$c", $nameCols)).')'
+        : "''";
+
+    $profesor = DB::table($this->T_DOCENTES.' as t')
+        ->where('t.teacher_id', $profesor_id)
+        ->selectRaw("t.teacher_id, {$docenteExpr} as docente")
+        ->first();
+
+    abort_unless($profesor, 404, 'Profesor no encontrado');
+
+    $subCols = array_values(array_filter(
+        ['subject_name','nombre','name'],
+        fn($c) => $schema->hasColumn($this->T_MATERIAS, $c)
+    ));
+    $materiaExpr = $subCols
+        ? 'COALESCE('.implode(', ', array_map(fn($c)=>"m.$c", $subCols)).')'
+        : "''";
+
+    $grpCols = array_values(array_filter(
+        ['group_name','nombre','name'],
+        fn($c) => $schema->hasColumn($this->T_GRUPOS, $c)
+    ));
+    $grupoExpr = $grpCols
+        ? 'COALESCE('.implode(', ', array_map(fn($c)=>"g.$c", $grpCols)).')'
+        : "''";
+
+    // ====== AULAS: construir "numero-LETRA" (LETRA = última letra de building_name) ======
+    $aulaIdCol = null;
+    $aulaExpr  = 'NULL';
+    $joinBP    = false;   // si hay FK a building_programs en salones
+    $a_bp_fk   = null;
+
+    if ($this->T_AULAS) {
+        // clave primaria/ID de relación con horarios
+        foreach (['classroom_id','salon_id','id'] as $c) {
+            if ($schema->hasColumn($this->T_AULAS, $c)) { $aulaIdCol = $c; break; }
+        }
+
+        // nombre/numero del salón
+        $aulaNames = array_filter([
+            $schema->hasColumn($this->T_AULAS,'classroom_name') ? 'a.classroom_name' : null,
+            $schema->hasColumn($this->T_AULAS,'nombre')         ? 'a.nombre'         : null,
+            $schema->hasColumn($this->T_AULAS,'name')           ? 'a.name'           : null,
+            $schema->hasColumn($this->T_AULAS,'room_name')      ? 'a.room_name'      : null,
+            $schema->hasColumn($this->T_AULAS,'numero')         ? 'a.numero'         : null,
+        ]);
+        $aulaExprBase = $aulaNames ? 'COALESCE('.implode(', ', $aulaNames).')' : 'NULL';
+
+        // edificio en la misma tabla de salones (si existe)
+        $edifNames = array_filter([
+            $schema->hasColumn($this->T_AULAS,'building_name') ? 'a.building_name' : null,
+            $schema->hasColumn($this->T_AULAS,'edificio')      ? 'a.edificio'      : null,
+            $schema->hasColumn($this->T_AULAS,'building')      ? 'a.building'      : null,
+        ]);
+        $aulaEdifExpr = $edifNames ? 'COALESCE('.implode(', ', $edifNames).')' : 'NULL';
+
+        // si existe building_programs y hay un FK plausible, lo usamos para obtener building_name
+        if ($schema->hasTable('building_programs')) {
+            foreach (['building_program_id','building_id','edificio_id','bp_id'] as $fk) {
+                if ($schema->hasColumn($this->T_AULAS, $fk)) { $a_bp_fk = $fk; $joinBP = true; break; }
+            }
+            if ($joinBP) {
+                // preferimos bp.building_name; si no, el que haya en salones
+                $aulaEdifExpr = 'COALESCE(bp.building_name, '.$aulaEdifExpr.')';
+            }
+        }
+
+        // Resultado final: "NRO-LETRA" (añade -LETRA solo si hay edificio)
+        $aulaExpr = "TRIM(CONCAT({$aulaExprBase}, CASE WHEN {$aulaEdifExpr} IS NOT NULL AND {$aulaEdifExpr} <> '' THEN CONCAT('-', RIGHT(TRIM({$aulaEdifExpr}),1)) ELSE '' END))";
+    }
+
+    // ====== LABS (sin cambio) ======
+    $labIdCol = null; $labExpr = 'NULL';
+    if ($this->T_LABS) {
+        foreach (['lab_id','laboratorio_id','laboratory_id','id'] as $c) {
+            if ($schema->hasColumn($this->T_LABS, $c)) { $labIdCol = $c; break; }
+        }
+        $labNames = array_filter([
+            $schema->hasColumn($this->T_LABS,'lab_name')         ? 'l.lab_name'         : null,
+            $schema->hasColumn($this->T_LABS,'laboratory_name')  ? 'l.laboratory_name'  : null,
+            $schema->hasColumn($this->T_LABS,'nombre')           ? 'l.nombre'           : null,
+            $schema->hasColumn($this->T_LABS,'name')             ? 'l.name'             : null,
+        ]);
+        if ($labNames) $labExpr = 'COALESCE('.implode(', ', $labNames).')';
+    }
+
+    // ====== columnas de horarios ======
+    $hasTeacher   = $schema->hasColumn($this->T_HORARIOS,'teacher_id');
+    $hasSubject   = $schema->hasColumn($this->T_HORARIOS,'subject_id');
+    $hasGroup     = $schema->hasColumn($this->T_HORARIOS,'group_id');
+    $hasClassroom = $schema->hasColumn($this->T_HORARIOS,'classroom_id');
+    $hasLab       = $schema->hasColumn($this->T_HORARIOS,'lab_id');
+    $hasDay       = $schema->hasColumn($this->T_HORARIOS,'schedule_day');
+    $hasStart     = $schema->hasColumn($this->T_HORARIOS,'start_time');
+    $hasEnd       = $schema->hasColumn($this->T_HORARIOS,'end_time');
+
+    $hTeacherExpr = $hasTeacher   ? 'h.teacher_id'   : 'NULL';
+    $hSubjectExpr = $hasSubject   ? 'h.subject_id'   : 'NULL';
+    $hGroupExpr   = $hasGroup     ? 'h.group_id'     : 'NULL';
+    $hRoomExpr    = $hasClassroom ? 'h.classroom_id' : 'NULL';
+    $hLabExpr     = $hasLab       ? 'h.lab_id'       : 'NULL';
+    $hDayExpr     = $hasDay       ? 'h.schedule_day' : 'NULL';
+    $hStartExpr   = $hasStart     ? 'h.start_time'   : 'NULL';
+    $hEndExpr     = $hasEnd       ? 'h.end_time'     : 'NULL';
+
+    $rows = DB::table($this->T_HORARIOS.' as h')
+        ->when($hasSubject, function($q) use ($hSubjectExpr) {
+            $q->leftJoin($this->T_MATERIAS.' as m', function ($j) use ($hSubjectExpr) {
+                $j->on('m.subject_id', '=', DB::raw($hSubjectExpr));
+            });
+        })
+        ->when($hasGroup, function($q) use ($hGroupExpr) {
+            $q->leftJoin($this->T_GRUPOS.' as g', function ($j) use ($hGroupExpr) {
+                $j->on('g.group_id', '=', DB::raw($hGroupExpr));
+            });
+        })
+        ->when($this->T_AULAS && $aulaIdCol && $hasClassroom, function($q) use ($aulaIdCol, $hRoomExpr, $joinBP, $a_bp_fk) {
+            $q->leftJoin($this->T_AULAS.' as a', function ($j) use ($aulaIdCol, $hRoomExpr) {
+                $j->on("a.$aulaIdCol", '=', DB::raw($hRoomExpr));
+            });
+            if ($joinBP && $a_bp_fk) {
+                $q->leftJoin('building_programs as bp', function ($j) use ($a_bp_fk) {
+                    $j->on('bp.id', '=', DB::raw("a.$a_bp_fk"));
+                });
+            }
+        })
+        ->when($this->T_LABS && $labIdCol && $hasLab, function($q) use ($labIdCol, $hLabExpr) {
+            $q->leftJoin($this->T_LABS.' as l', function ($j) use ($labIdCol, $hLabExpr) {
+                $j->on("l.$labIdCol", '=', DB::raw($hLabExpr));
+            });
+        })
+        ->where(function($w) use ($profesor_id, $hasTeacher) {
+            if ($hasTeacher) $w->where('h.teacher_id', $profesor_id);
+            else $w->whereRaw('1=0');
+        })
+        ->when($schema->hasColumn($this->T_HORARIOS, 'estado'), function($q){
+            $q->whereIn('h.estado', ['1','ACTIVO','activo']);
+        })
+        ->selectRaw("
+            h.*,
+            {$hSubjectExpr}  as subject_id,
+            {$hTeacherExpr}  as teacher_id,
+            {$hGroupExpr}    as group_id,
+            {$hRoomExpr}     as classroom_id,
+            {$hLabExpr}      as lab_id,
+
+            {$hDayExpr}      as dia_semana,
+            {$hStartExpr}    as hora_inicio,
+            {$hEndExpr}      as hora_fin,
+
+            {$materiaExpr}   as materia,
+            {$grupoExpr}     as grupo,
+            {$aulaExpr}      as aula_nombre,
+            {$labExpr}       as lab_nombre,
+
+            (CASE WHEN {$hLabExpr} IS NOT NULL THEN 1 ELSE 0 END) as es_lab
+        ")
+        ->orderBy('dia_semana')
+        ->orderBy('hora_inicio')
+        ->get();
+
+    $dias  = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    $horas = $this->buildHourSlots('07:00:00', '20:00:00', 60);
+    $tabla = [];
+    foreach ($horas as $hLabel) foreach ($dias as $d) { $tabla[$hLabel][$d] = ''; }
+
+    foreach ($rows as $r) {
+        $diaCanon = $this->canonicalDay($r->dia_semana);
+        if (!in_array($diaCanon, $dias, true)) continue;
+
+        foreach ($horas as $hLabel) {
+            [$hStart, $hEnd] = explode(' - ', $hLabel);
+            $hStart .= ':00'; $hEnd .= ':00';
+            if (!$this->overlaps($hStart, $hEnd, $r->hora_inicio, $r->hora_fin)) continue;
+
+            $espacio = (intval($r->es_lab) === 1)
+                ? ($r->lab_nombre ?: 'Laboratorio')
+                : ($r->aula_nombre ?: 'Aula');
+
+            $linea = e(($r->materia ?: 'Materia')) . ' — ' . e(($r->grupo ?: 'Grupo')) . ' — ' . e($espacio);
+
+            $tabla[$hLabel][$diaCanon] = trim($tabla[$hLabel][$diaCanon]) === ''
+                ? $linea
+                : $tabla[$hLabel][$diaCanon] . '<br>' . $linea;
+        }
+    }
+
+    $profesores = DB::table($this->T_DOCENTES.' as t')
+        ->selectRaw("t.teacher_id, {$docenteExpr} as docente")
+        ->orderByRaw("$docenteExpr asc")
+        ->get();
+
+    return view('horarios.profesores.show', [
+        'profesor'   => $profesor,
+        'dias'       => $dias,
+        'horas'      => $horas,
+        'tabla'      => $tabla,
+        'profesores' => $profesores,
+    ]);
+}
+
 
     public function eventos(int $profesor_id)
     {
