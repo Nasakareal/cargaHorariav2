@@ -6,9 +6,10 @@
     "\\app\\Http\\Controllers",
     "\\resources",
     "\\resources\\views",
-    "\\resources\\views\\horarios",
+    "\\resources\\views\\grupos",
+    "\\resources\\views\\horarios\\grupos",
     "\\resources\\views\\horarios\\profesores"
   ],
-  "SelectedNode": "\\app\\Http\\Controllers\\ProfesorController.php",
+  "SelectedNode": "\\resources\\views\\grupos\\show.blade.php",
   "PreviewInSolutionExplorer": false
 }

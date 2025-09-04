@@ -43,6 +43,8 @@
 
         <div class="card-body">
           @php
+            use Carbon\Carbon;
+
             $id        = $grupo->group_id ?? $grupo->id ?? null;
             $name      = $grupo->group_name ?? '—';
             $programa  = $grupo->program_name ?? $grupo->programa ?? '—';
@@ -50,12 +52,20 @@
             $term      = $grupo->term_name ?? $grupo->term_id ?? '—';
             $turno     = $grupo->shift_name ?? $grupo->turno ?? '—';  // tabla real: shifts
             $volume    = (int)($grupo->volume ?? 0);
-            $aula      = $grupo->classroom_assigned ?? '—';
-            $lab       = $grupo->lab_assigned ?? '—';
 
-            // Materias del grupo (opcional): puedes pasar $materias como colección/array de:
-            // subject_name, weekly_hours, teacher_name (null => “Sin profesor”)
+            // Aulas/labs: primero alias amigable (si el controlador los envió),
+            // si no, caemos a los campos crudos; si vienen vacíos, mostramos "—".
+            $aulaRaw   = $grupo->aula_asignada ?? $grupo->classroom_assigned ?? null;
+            $labRaw    = $grupo->laboratorio_asignado ?? $grupo->lab_assigned ?? null;
+            $aula      = ($aulaRaw !== null && $aulaRaw !== '') ? $aulaRaw : '—';
+            $lab       = ($labRaw  !== null && $labRaw  !== '') ? $labRaw  : '—';
+
+            // Materias del grupo (colección/array con: subject_name, weekly_hours, teacher_name)
             $materias = $materias ?? [];
+
+            // Fechas seguras (evita llamar ->format sobre strings)
+            $creacion  = !empty($grupo->fyh_creacion)      ? Carbon::parse($grupo->fyh_creacion)->format('Y-m-d H:i')      : '—';
+            $actualiza = !empty($grupo->fyh_actualizacion) ? Carbon::parse($grupo->fyh_actualizacion)->format('Y-m-d H:i') : '—';
           @endphp
 
           <div class="row">
@@ -96,12 +106,12 @@
 
             <div class="col-md-4 mb-3">
               <strong>Aula asignada:</strong>
-              <div>{{ $aula ?: '—' }}</div>
+              <div>{{ $aula }}</div>
             </div>
 
             <div class="col-md-4 mb-3">
               <strong>Laboratorio asignado:</strong>
-              <div>{{ $lab ?: '—' }}</div>
+              <div>{{ $lab }}</div>
             </div>
           </div>
 
@@ -123,12 +133,12 @@
                       @foreach($materias as $m)
                         @php
                           $nombreMateria = $m->subject_name ?? $m['subject_name'] ?? '—';
-                          $horas         = $m->weekly_hours ?? $m['weekly_hours'] ?? 0;
+                          $horas         = (int)($m->weekly_hours ?? $m['weekly_hours'] ?? 0);
                           $profe         = $m->teacher_name ?? $m['teacher_name'] ?? null;
                         @endphp
                         <tr class="{{ $profe ? '' : 'table-warning' }}">
                           <td>{{ $nombreMateria }}</td>
-                          <td class="text-center">{{ (int)$horas }}</td>
+                          <td class="text-center">{{ $horas }}</td>
                           <td>
                             @if($profe)
                               <span class="badge badge-success">{{ $profe }}</span>
@@ -150,12 +160,12 @@
           <div class="row mt-3">
             <div class="col-md-6 mb-3">
               <strong>Creación:</strong>
-              <div>{{ optional($grupo->fyh_creacion ?? null)->format('Y-m-d H:i') }}</div>
+              <div>{{ $creacion }}</div>
             </div>
 
             <div class="col-md-6 mb-3">
               <strong>Última actualización:</strong>
-              <div>{{ optional($grupo->fyh_actualizacion ?? null)->format('Y-m-d H:i') ?? '—' }}</div>
+              <div>{{ $actualiza }}</div>
             </div>
           </div>
         </div>

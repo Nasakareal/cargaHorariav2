@@ -126,6 +126,8 @@ class GrupoController extends Controller
             ->leftJoin('programs as p', 'p.program_id', '=', 'g.program_id')
             ->leftJoin('terms as tm',   'tm.term_id',   '=', 'g.term_id')
             ->leftJoin('shifts as sh',  'sh.shift_id',  '=', 'g.turn_id')
+            ->leftJoin('classrooms as a', 'a.classroom_id', '=', 'g.classroom_assigned')
+            ->leftJoin('classrooms as l', 'l.classroom_id', '=', 'g.lab_assigned')
             ->where('g.group_id', (int)$id)
             ->first([
                 'g.group_id','g.group_name','g.area','g.volume',
@@ -133,11 +135,50 @@ class GrupoController extends Controller
                 DB::raw('COALESCE(p.program_name,"—") as program_name'),
                 DB::raw('COALESCE(tm.term_name,"—")   as term_name'),
                 DB::raw('COALESCE(sh.shift_name,"—")  as shift_name'),
+
+                /* ===== Formato 16-A para aula ===== */
+                DB::raw("
+                    CASE 
+                      WHEN g.classroom_assigned IS NULL THEN 'Sin asignar'
+                      ELSE CONCAT(
+                        COALESCE(a.classroom_name, CAST(g.classroom_assigned AS CHAR)),
+                        CASE 
+                          WHEN a.building IS NULL OR a.building = '' THEN ''
+                          ELSE CONCAT('-', 
+                            CASE 
+                              WHEN a.building LIKE '%-%' THEN SUBSTRING_INDEX(a.building,'-',-1)
+                              ELSE RIGHT(a.building,1)
+                            END
+                          )
+                        END
+                      )
+                    END AS aula_asignada
+                "),
+
+                DB::raw("
+                    CASE 
+                      WHEN g.lab_assigned IS NULL THEN 'Sin asignar'
+                      ELSE CONCAT(
+                        COALESCE(l.classroom_name, CAST(g.lab_assigned AS CHAR)),
+                        CASE 
+                          WHEN l.building IS NULL OR l.building = '' THEN ''
+                          ELSE CONCAT('-', 
+                            CASE 
+                              WHEN l.building LIKE '%-%' THEN SUBSTRING_INDEX(l.building,'-',-1)
+                              ELSE RIGHT(l.building,1)
+                            END
+                          )
+                        END
+                      )
+                    END AS laboratorio_asignado
+                "),
+
                 'g.fyh_creacion','g.fyh_actualizacion','g.estado'
             ]);
 
         if (!$g) {
-            return redirect()->route('grupos.index')->with('error', 'El grupo no existe o ya fue eliminado.');
+            return redirect()->route('grupos.index')
+                ->with('error', 'El grupo no existe o ya fue eliminado.');
         }
 
         $materias = DB::table('group_subjects as gs')
@@ -162,11 +203,11 @@ class GrupoController extends Controller
         $materiasNoCubiertas = $totalMaterias - $materiasAsignadas;
 
         return view('grupos.show', [
-            'grupo'                => $g,
-            'materias'             => $materias,
-            'total_materias'       => $totalMaterias,
-            'materias_asignadas'   => $materiasAsignadas,
-            'materias_no_cubiertas'=> $materiasNoCubiertas,
+            'grupo'                 => $g,
+            'materias'              => $materias,
+            'total_materias'        => $totalMaterias,
+            'materias_asignadas'    => $materiasAsignadas,
+            'materias_no_cubiertas' => $materiasNoCubiertas,
         ]);
     }
 
