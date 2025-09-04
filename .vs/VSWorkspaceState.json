@@ -4,12 +4,13 @@
     "\\app",
     "\\app\\Http",
     "\\app\\Http\\Controllers",
+    "\\app\\Http\\Controllers\\Horarios",
     "\\resources",
     "\\resources\\views",
     "\\resources\\views\\grupos",
-    "\\resources\\views\\horarios\\grupos",
+    "\\resources\\views\\horarios",
     "\\resources\\views\\horarios\\profesores"
   ],
-  "SelectedNode": "\\resources\\views\\grupos\\show.blade.php",
+  "SelectedNode": "\\resources\\views\\horarios\\profesores\\show.blade.php",
   "PreviewInSolutionExplorer": false
 }
