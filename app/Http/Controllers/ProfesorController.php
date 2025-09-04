@@ -24,6 +24,7 @@ class ProfesorController extends Controller
             ->leftJoin('program_term_subjects as pts', 'pts.subject_id', 's.subject_id')
             ->leftJoin('programs as ps', 'ps.program_id', 'pts.program_id')
             ->leftJoin('terms as pt', 'pt.term_id', 'pts.term_id')
+            ->whereIn('t.estado', [1, '1', 'activo', 'Activo', 'ACTIVO'])
             ->groupBy('t.teacher_id', 't.teacher_name', 't.clasificacion', 't.hours')
             ->select([
                 't.teacher_id',
