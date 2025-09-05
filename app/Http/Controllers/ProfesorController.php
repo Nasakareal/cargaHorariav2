@@ -263,7 +263,8 @@ class ProfesorController extends Controller
 
     public function destroy($id)
     {
-        $profesor = Teacher::withCount('materias')->find($id);
+        $profesor = \App\Models\Teacher::where('teacher_id', $id)->first();
+
         if (!$profesor) {
             return redirect()->route('profesores.index')
                 ->with('error', 'El profesor no existe o ya fue eliminado.');
@@ -274,23 +275,61 @@ class ProfesorController extends Controller
                 ->with('error', 'No tienes permiso para eliminar profesores.');
         }
 
-        if ($profesor->materias_count > 0) {
+        $tieneActivas = DB::table('schedule_assignments as sa')
+            ->where('sa.teacher_id', $id)
+            ->where(function ($w) {
+                $w->whereRaw('LOWER(COALESCE(sa.estado, "")) IN ("activo","activa","active")')
+                  ->orWhere('sa.estado', '1');
+            })
+            ->exists();
+
+        if ($tieneActivas) {
             return redirect()->route('profesores.index')
-                ->with('error', 'No se puede eliminar un profesor con materias asignadas.');
+                ->with('error', 'No se puede eliminar: el profesor tiene materias activas en el horario.');
         }
 
         try {
-            ActividadGeneral::registrar('ELIMINAR', 'teachers', $profesor->teacher_id, "Eliminó al profesor {$profesor->teacher_name}");
-            $profesor->delete();
+            DB::transaction(function () use ($id, $profesor) {
+
+                $posibles = [
+                    'teacher_subjects'            => 'teacher_id',
+                    'teacher_program_term'        => 'teacher_id',
+                    'teacher_groups'              => 'teacher_id',
+                    'teacher_availability'        => 'teacher_id',
+                    'group_schedule_teacher'      => 'teacher_id',
+                    'manual_schedule_assignments' => 'teacher_id',
+                    'schedule_history'            => 'teacher_id',
+                    'schedule_assignments'        => 'teacher_id',
+                ];
+
+                foreach ($posibles as $tabla => $col) {
+                    if (DB::getSchemaBuilder()->hasTable($tabla)) {
+                        DB::table($tabla)->where($col, $id)->delete();
+                    }
+                }
+
+                $profesor->delete();
+            });
+
+            if (class_exists(\App\Models\ActividadGeneral::class)) {
+                \App\Models\ActividadGeneral::registrar(
+                    'ELIMINAR', 'teachers', $profesor->teacher_id,
+                    "Eliminó al profesor {$profesor->teacher_name}"
+                );
+            }
 
             return redirect()->route('profesores.index')
                 ->with('success', 'Profesor eliminado correctamente.');
+
         } catch (QueryException $e) {
-            Log::error('Error BD al eliminar profesor', ['code'=>$e->getCode(),'msg'=>$e->getMessage()]);
-            return redirect()->route('profesores.index')
-                ->with('error', 'Error de base de datos al eliminar el profesor.');
+            Log::error('Error BD al eliminar profesor', ['code' => $e->getCode(), 'msg' => $e->getMessage()]);
+            $msg = ($e->getCode() === '23000')
+                ? 'No se pudo eliminar por relaciones (FK). Revisa tablas relacionadas.'
+                : 'Error de base de datos al eliminar el profesor.';
+            return redirect()->route('profesores.index')->with('error', $msg);
+
         } catch (\Throwable $e) {
-            Log::error('Error inesperado al eliminar profesor', ['msg'=>$e->getMessage()]);
+            Log::error('Error inesperado al eliminar profesor', ['msg' => $e->getMessage()]);
             return redirect()->route('profesores.index')
                 ->with('error', 'Ocurrió un error inesperado al eliminar el profesor.');
         }

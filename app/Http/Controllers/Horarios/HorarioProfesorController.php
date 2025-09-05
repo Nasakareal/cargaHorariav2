@@ -423,6 +423,7 @@ class HorarioProfesorController extends Controller
 
         // encabezado
         $sheet->setCellValue('C3',  $profesor->teacher_name);
+        $sheet->setCellValue('G3', is_null($profesor->hours) ? 0 : (int)$profesor->hours);
 
         // filas por hora
         $fila = 6;

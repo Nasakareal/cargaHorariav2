@@ -29,6 +29,7 @@ use App\Http\Controllers\Horarios\HorarioManualController;
 use App\Http\Controllers\Horarios\IntercambioHorarioController;
 use App\Http\Controllers\Horarios\HorarioGrupoController;
 use App\Http\Controllers\Horarios\HorarioProfesorController;
+use App\Http\Controllers\Horarios\HorarioSalonController;
 
 // Institucion
 use App\Http\Controllers\Institucion\SalonesController;
@@ -198,6 +199,13 @@ Route::prefix('horarios')->name('horarios.')->middleware('can:ver horario labora
         Route::get('/profesores', [HorarioProfesorController::class,'index'])->name('profesores.index');
         Route::get('/profesores/{profesor_id}', [HorarioProfesorController::class,'show'])->whereNumber('profesor_id')->name('profesores.show');
         Route::get('/profesores/{profesor_id}/eventos', [HorarioProfesorController::class,'eventos'])->whereNumber('profesor_id')->name('profesores.eventos');
+    });
+
+    // ===== 5) Ver horarios de salones/labs (solo lectura) =====
+    Route::middleware('can:ver horarios')->group(function () {
+        Route::get('/salones', [HorarioSalonController::class, 'index'])->name('salones.index');
+        Route::get('/salones/{tipo}/{espacio_id}', [HorarioSalonController::class, 'show'])->where(['tipo' => '(aula|lab)'])->whereNumber('espacio_id')->name('salones.show');
+        Route::get('/salones/{tipo}/{espacio_id}/eventos', [HorarioSalonController::class, 'eventos'])->where(['tipo' => '(aula|lab)'])->whereNumber('espacio_id')->name('salones.eventos');
     });
 });
 

@@ -365,8 +365,9 @@ return [
             'submenu' => [
                 ['text'=>'Asignación Manual',     'url'=>'horarios/manual',     'icon'=>'bi bi-stopwatch', 'can'=>'ver horario laboratorio'],
                 ['text'=>'Intercambiar Horarios',  'url'=>'horarios/intercambio',    'icon'=>'bi bi-shuffle', 'can'=>'intercambiar horarios'],
-                ['text'=>'Horarios de Grupos',  'url'=>'horarios/grupos',    'icon'=>'bi bi-hourglass-split', 'can'=>'intercambiar horarios'],
-                ['text'=>'Horarios de Profesores',  'url'=>'horarios/profesores',    'icon'=>'bi bi-person-video3', 'can'=>'intercambiar horarios'],
+                ['text'=>'Horarios de Grupos',  'url'=>'horarios/grupos',    'icon'=>'bi bi-hourglass-split', 'can'=>'ver horarios grupos'],
+                ['text'=>'Horarios de Profesores',  'url'=>'horarios/profesores',    'icon'=>'bi bi-person-video3', 'can'=>'ver horarios profesores'],
+                ['text'=>'Horarios de Aulas',  'url'=>'horarios/salones',    'icon'=>'bi bi-house', 'can'=>'ver horario laboratorio'],
             ],
         ],
 

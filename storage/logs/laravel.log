@@ -26464,3 +26464,4 @@
 #34 C:\\wamp64\\www\\cargaHorariav2\\public\\index.php(51): Illuminate\\Foundation\\Http\\Kernel->handle(Object(Illuminate\\Http\\Request))
 #35 {main}
 "} 
+[2025-09-05 04:11:56] local.ERROR: Error BD al eliminar profesor {"code":"23000","msg":"SQLSTATE[23000]: Integrity constraint violation: 1451 Cannot delete or update a parent row: a foreign key constraint fails (`cargahoraria`.`teacher_program_term`, CONSTRAINT `fk_teacher_program` FOREIGN KEY (`teacher_id`) REFERENCES `teachers` (`teacher_id`)) (SQL: delete from `teachers` where `teacher_id` = 8)"} 
