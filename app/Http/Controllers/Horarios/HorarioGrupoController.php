@@ -78,9 +78,9 @@ class HorarioGrupoController extends Controller
             : "NULL as tipo_espacio";
 
         $tieneAula = $schema->hasColumn('schedule_assignments','classroom_id');
-        $selClassroom = $tieneAula ? 's.classroom_id' : "NULL as classroom_id";
-        $selAulaNombre = $tieneAula ? 'a.classroom_name as aula_nombre' : 'NULL as aula_nombre';
-        $selAulaBuilding = $tieneAula ? 'a.building as aula_building'   : 'NULL as aula_building';
+        $selClassroom    = $tieneAula ? 's.classroom_id' : "NULL as classroom_id";
+        $selAulaNombre   = $tieneAula ? 'a.classroom_name as aula_nombre' : 'NULL as aula_nombre';
+        $selAulaBuilding = $tieneAula ? 'a.building as aula_building'     : 'NULL as aula_building';
 
         $selLab = $schema->hasColumn('schedule_assignments','lab_id') ? 's.lab_id' : "NULL as lab_id";
 
@@ -148,7 +148,7 @@ class HorarioGrupoController extends Controller
                             $letra = strtoupper($building);
                         }
                     }
-                    $espacio = $letra !== '' ? ($num . '-' . strtoupper($letra)) : $num;
+                    $espacio = $letra !== '' ? ($letra . $num) : $num;
                 } else {
                     $espacio = '—';
                 }
@@ -261,19 +261,20 @@ class HorarioGrupoController extends Controller
             if (!empty($r->lab_name)) {
                 $espacio = $r->lab_name;
             } elseif (!empty($r->classroom_name)) {
-                $letra = '';
                 $building = (string)($r->building ?? '');
+                $letra = '';
                 if ($building !== '') {
                     if (strpos($building, '-') !== false) {
                         $letra = substr($building, strrpos($building, '-') + 1);
                     } elseif (preg_match('/([A-Z])$/i', $building, $m)) {
-                        $letra = strtoupper($m[1]);
+                        $letra = $m[1];
                     } else {
-                        $letra = strtoupper($building);
+                        $letra = $building;
                     }
                 }
-                $num = trim((string)$r->classroom_name);
-                $espacio = $letra !== '' ? ($num . '-' . $letra) : $num;
+                $letra = strtoupper(trim($letra));
+                $num   = trim((string)$r->classroom_name);
+                $espacio = $letra !== '' ? ($letra . $num) : $num;
             }
 
             $contenido = $r->subject_name;

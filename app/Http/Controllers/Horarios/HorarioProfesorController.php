@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
 class HorarioProfesorController extends Controller
 {
@@ -131,7 +132,13 @@ class HorarioProfesorController extends Controller
                 }
             }
 
-            $aulaExpr = "TRIM(CONCAT({$aulaExprBase}, CASE WHEN {$aulaEdifExpr} IS NOT NULL AND {$aulaEdifExpr} <> '' THEN CONCAT('-', RIGHT(TRIM({$aulaEdifExpr}),1)) ELSE '' END))";
+            $letraExpr = "UPPER(RIGHT(TRIM(SUBSTRING_INDEX({$aulaEdifExpr},'-',-1)),1))";
+
+            $aulaExpr = "TRIM(CASE
+                WHEN {$aulaExprBase} IS NULL OR {$aulaExprBase} = '' THEN NULL
+                WHEN {$aulaEdifExpr} IS NULL OR {$aulaEdifExpr} = '' THEN {$aulaExprBase}
+                ELSE CONCAT({$letraExpr}, {$aulaExprBase})
+            END)";
         }
 
         $labIdCol = null; $labExpr = 'NULL';
@@ -238,7 +245,7 @@ class HorarioProfesorController extends Controller
 
                 $espacio = (intval($r->es_lab) === 1)
                     ? ($r->lab_nombre ?: 'Laboratorio')
-                    : ($r->aula_nombre ?: 'Aula');
+                    : ($r->aula_nombre ?: 'Aula'); // ya viene en formato B16 si aplica
 
                 $linea = e(($r->materia ?: 'Materia')) . ' — ' . e(($r->grupo ?: 'Grupo')) . ' — ' . e($espacio);
 
@@ -250,14 +257,12 @@ class HorarioProfesorController extends Controller
 
         $profesores = DB::table($this->T_DOCENTES.' as t')
             ->when($schema->hasColumn($this->T_DOCENTES,'estado'), function($q){
-                
                 $q->whereIn('t.estado', ['1','ACTIVO','activo']);
                 $q->whereNotIn(DB::raw('UPPER(t.estado)'), ['HIDE','OCULTO','INACTIVO', 'hide']);
             })
             ->selectRaw("t.teacher_id, {$docenteExpr} as docente")
             ->orderByRaw("$docenteExpr asc")
             ->get();
-
 
         return view('horarios.profesores.show', [
             'profesor'   => $profesor,
@@ -267,6 +272,7 @@ class HorarioProfesorController extends Controller
             'profesores' => $profesores,
         ]);
     }
+
 
     public function eventos(int $profesor_id)
     {
@@ -451,9 +457,9 @@ class HorarioProfesorController extends Controller
             ")
             ->get();
 
-        $dias = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+        $dias  = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
         $horas = [];
-        $t = \Carbon\Carbon::createFromFormat('H:i', '07:00');
+        $t   = \Carbon\Carbon::createFromFormat('H:i', '07:00');
         $end = \Carbon\Carbon::createFromFormat('H:i', '20:00');
         while ($t < $end) {
             $nxt = $t->copy()->addHour();
@@ -470,6 +476,7 @@ class HorarioProfesorController extends Controller
             if (!in_array($hLabel, $horas) || !in_array($dia, $dias)) continue;
 
             $espacio = null;
+
             if (!empty($r->lab_name)) {
                 $espacio = $r->lab_name;
             } elseif (!empty($r->aula_numero)) {
@@ -486,32 +493,57 @@ class HorarioProfesorController extends Controller
                     }
                 }
                 $letra = strtoupper($letra);
-                $espacio = $letra !== '' ? ($num . '-' . $letra) : $num;
+                $espacio = $letra !== '' ? ($letra . $num) : $num;
             }
 
-            $contenido = $r->subject_name . ' — ' . $r->group_name;
-            if (!empty($espacio)) {
-                $contenido .= ' — ' . $espacio;
-            }
+            $partes = array_filter([
+                $r->subject_name ?? '',
+                $r->group_name   ?? '',
+                $espacio         ?? '',
+            ], fn($v) => $v !== null && $v !== '');
 
-            $tabla[$hLabel][$dia] = $contenido;
+            $tabla[$hLabel][$dia] = implode("\n", $partes);
         }
 
         $templatePath = public_path('plantilla.xlsx');
         $spreadsheet = IOFactory::load($templatePath);
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setCellValue('C3',  $profesor->teacher_name);
-        $sheet->setCellValue('G3', is_null($profesor->hours) ? 0 : (int)$profesor->hours);
+        $sheet->setCellValue('G4', is_null($profesor->hours) ? 0 : (int)$profesor->hours);
+
+        // Para autoajuste selectivo
         $fila = 6;
+        $filasConContenido = [];
+
         foreach ($horas as $h) {
             $sheet->setCellValue("A{$fila}", $h);
+
+            $hayContenidoEnFila = false;
             $col = 'B';
             foreach ($dias as $d) {
-                $sheet->setCellValue("{$col}{$fila}", $tabla[$h][$d]);
+                $texto = $tabla[$h][$d];
+
+                $sheet->setCellValue("{$col}{$fila}", $texto);
+
+                if ($texto !== '') {
+                    $sheet->getStyle("{$col}{$fila}")
+                          ->getAlignment()
+                          ->setWrapText(true)
+                          ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_TOP);
+                    $hayContenidoEnFila = true;
+                }
+
                 $col++;
             }
+
+            if ($hayContenidoEnFila) {
+                $sheet->getRowDimension($fila)->setRowHeight(-1);
+                $filasConContenido[] = $fila;
+            }
+
             $fila++;
         }
+
         $fileName = 'Horario_'.$profesor->teacher_name.'_'.now()->format('Ymd_His').'.xlsx';
         $filePath = storage_path("app/tmp/{$fileName}");
         @mkdir(dirname($filePath), 0775, true);
@@ -521,9 +553,7 @@ class HorarioProfesorController extends Controller
         return response()->download($filePath, $fileName)->deleteFileAfterSend(true);
     }
 
-
     /** ================= Helpers ================= */
-
     protected function canonicalDay($d): string
     {
         $k = mb_strtolower(trim((string)$d), 'UTF-8');

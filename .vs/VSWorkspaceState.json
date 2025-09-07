@@ -9,6 +9,6 @@
     "\\resources\\views\\grupos",
     "\\routes"
   ],
-  "SelectedNode": "\\resources\\views\\grupos\\index.blade.php",
+  "SelectedNode": "\\app\\Http\\Controllers\\GrupoController.php",
   "PreviewInSolutionExplorer": false
 }

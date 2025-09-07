@@ -42,16 +42,20 @@ class GrupoController extends Controller
                 DB::raw('COUNT(DISTINCT gs.subject_id) as total_materias'),
                 DB::raw('COUNT(DISTINCT ts.subject_id) as materias_asignadas'),
                 DB::raw('(COUNT(DISTINCT gs.subject_id) - COUNT(DISTINCT ts.subject_id)) as materias_no_cubiertas'),
+
                 DB::raw("
                     COALESCE(
                       MAX(
-                        TRIM(CONCAT(
-                          COALESCE(NULLIF(a.classroom_name,''), a.classroom_id),
+                        TRIM(
                           CASE
-                            WHEN a.building IS NULL OR a.building='' THEN ''
-                            ELSE CONCAT('(', RIGHT(TRIM(SUBSTRING_INDEX(a.building,'-',-1)), 1), ')')
+                            WHEN (a.classroom_name IS NULL OR a.classroom_name = '') AND (a.classroom_id IS NULL) THEN NULL
+                            WHEN a.building IS NULL OR a.building = '' THEN COALESCE(NULLIF(a.classroom_name,''), a.classroom_id)
+                            WHEN a.building LIKE '%-%' THEN
+                              CONCAT(UPPER(RIGHT(TRIM(SUBSTRING_INDEX(a.building,'-',-1)),1)), COALESCE(NULLIF(a.classroom_name,''), a.classroom_id))
+                            ELSE
+                              CONCAT(UPPER(RIGHT(TRIM(a.building),1)), COALESCE(NULLIF(a.classroom_name,''), a.classroom_id))
                           END
-                        ))
+                        )
                       ),
                       '—'
                     ) as aula_asignada
@@ -64,6 +68,7 @@ class GrupoController extends Controller
 
         return view('grupos.index', compact('grupos'));
     }
+
     
     /* =================== CREATE =================== */
     public function create()
