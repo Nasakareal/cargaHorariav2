@@ -34,7 +34,7 @@ class HorarioSalonController extends Controller
             : "CONCAT('Lab ', l.lab_id)";
 
         $aulaExpr = $schema->hasColumn($this->T_AULAS, 'building')
-            ? "CONCAT(($aulaBase), COALESCE(RIGHT(a.building,1), ''))"
+            ? "CONCAT(COALESCE(RIGHT(a.building,1), ''), ' ', ($aulaBase))"
             : $aulaBase;
 
         $labExpr  = $schema->hasColumn($this->T_LABS, 'building')
@@ -49,7 +49,7 @@ class HorarioSalonController extends Controller
                         $w->orWhere("a.$c", 'like', '%'.request('q').'%');
                     }
                     if ($schema->hasColumn('classrooms', 'building')) {
-                        $w->orWhereRaw("CONCAT(($aulaBase), COALESCE(RIGHT(a.building,1), '')) LIKE ?", ['%'.request('q').'%']);
+                        $w->orWhereRaw("CONCAT(COALESCE(RIGHT(a.building,1), ''), ' ', ($aulaBase)) LIKE ?",['%'.request('q').'%']);
                     }
                 });
             })
