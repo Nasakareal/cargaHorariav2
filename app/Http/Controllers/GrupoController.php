@@ -19,7 +19,6 @@ class GrupoController extends Controller
     /* =================== INDEX =================== */
     public function index()
     {
-        // Listado con agregados: total materias, asignadas y faltantes
         $grupos = DB::table('groups as g')
             ->leftJoin('programs as p', 'p.program_id', '=', 'g.program_id')
             ->leftJoin('terms as tm',   'tm.term_id',   '=', 'g.term_id')
@@ -29,18 +28,34 @@ class GrupoController extends Controller
                 $j->on('ts.group_id', '=', 'g.group_id')
                   ->on('ts.subject_id', '=', 'gs.subject_id');
             })
+
+            ->leftJoin('classrooms as a', 'a.classroom_id', '=', 'g.classroom_assigned')
+
             ->groupBy('g.group_id', 'g.group_name', 'g.area', 'g.volume', 'p.program_name', 'tm.term_name', 'sh.shift_name')
             ->select([
                 'g.group_id',
                 'g.group_name',
                 'g.area',
-                'g.volume',
                 DB::raw('COALESCE(p.program_name,"—") as program_name'),
                 DB::raw('COALESCE(tm.term_name,"—")   as term_name'),
                 DB::raw('COALESCE(sh.shift_name,"—")  as shift_name'),
                 DB::raw('COUNT(DISTINCT gs.subject_id) as total_materias'),
                 DB::raw('COUNT(DISTINCT ts.subject_id) as materias_asignadas'),
                 DB::raw('(COUNT(DISTINCT gs.subject_id) - COUNT(DISTINCT ts.subject_id)) as materias_no_cubiertas'),
+                DB::raw("
+                    COALESCE(
+                      MAX(
+                        TRIM(CONCAT(
+                          COALESCE(NULLIF(a.classroom_name,''), a.classroom_id),
+                          CASE
+                            WHEN a.building IS NULL OR a.building='' THEN ''
+                            ELSE CONCAT('(', RIGHT(TRIM(SUBSTRING_INDEX(a.building,'-',-1)), 1), ')')
+                          END
+                        ))
+                      ),
+                      '—'
+                    ) as aula_asignada
+                "),
             ])
             ->orderBy('p.program_name')
             ->orderByRaw('CAST(tm.term_name AS UNSIGNED), tm.term_name')
@@ -49,7 +64,7 @@ class GrupoController extends Controller
 
         return view('grupos.index', compact('grupos'));
     }
-
+    
     /* =================== CREATE =================== */
     public function create()
         {

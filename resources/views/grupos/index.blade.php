@@ -55,7 +55,7 @@
                 <th>Área</th>
                 <th class="text-center">Cuatr.</th>
                 <th>Turno</th>
-                <th class="text-center">Volumen</th>
+                <th class="text-center">Aula</th>
                 <th class="text-center">Materias</th>
                 <th class="text-center">Asignadas</th>
                 <th class="text-center">Faltantes</th>
@@ -71,7 +71,7 @@
                   $area   = $g->area ?? '—';
                   $term   = $g->term_name ?? '—';
                   $turno  = $g->shift_name ?? '—';
-                  $vol    = (int)($g->volume ?? 0);
+                  $aula   = trim($g->aula_asignada ?? '—');
                   $tot    = (int)($g->total_materias ?? 0);
                   $asig   = (int)($g->materias_asignadas ?? 0);
                   $falt   = (int)($g->materias_no_cubiertas ?? max($tot - $asig, 0));
@@ -84,7 +84,7 @@
                   <td>{{ $area }}</td>
                   <td class="text-center" data-order="{{ $orderTerm }}">{{ $term }}</td>
                   <td>{{ $turno }}</td>
-                  <td class="text-center">{{ $vol }}</td>
+                  <td class="text-center">{{ $aula }}</td>
                   <td class="text-center">{{ $tot }}</td>
                   <td class="text-center">{{ $asig }}</td>
                   <td class="text-center {{ $falt > 0 ? 'text-danger font-weight-bold' : 'text-success' }}">
