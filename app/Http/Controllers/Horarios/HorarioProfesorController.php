@@ -96,19 +96,16 @@ class HorarioProfesorController extends Controller
             ? 'COALESCE('.implode(', ', array_map(fn($c)=>"g.$c", $grpCols)).')'
             : "''";
 
-        // ====== AULAS: construir "numero-LETRA" (LETRA = última letra de building_name) ======
         $aulaIdCol = null;
         $aulaExpr  = 'NULL';
         $joinBP    = false;
         $a_bp_fk   = null;
 
         if ($this->T_AULAS) {
-            // clave primaria/ID de relación con horarios
             foreach (['classroom_id','salon_id','id'] as $c) {
                 if ($schema->hasColumn($this->T_AULAS, $c)) { $aulaIdCol = $c; break; }
             }
 
-            // nombre/numero del salón
             $aulaNames = array_filter([
                 $schema->hasColumn($this->T_AULAS,'classroom_name') ? 'a.classroom_name' : null,
                 $schema->hasColumn($this->T_AULAS,'nombre')         ? 'a.nombre'         : null,
@@ -118,7 +115,6 @@ class HorarioProfesorController extends Controller
             ]);
             $aulaExprBase = $aulaNames ? 'COALESCE('.implode(', ', $aulaNames).')' : 'NULL';
 
-            // edificio en la misma tabla de salones (si existe)
             $edifNames = array_filter([
                 $schema->hasColumn($this->T_AULAS,'building_name') ? 'a.building_name' : null,
                 $schema->hasColumn($this->T_AULAS,'edificio')      ? 'a.edificio'      : null,
@@ -126,22 +122,18 @@ class HorarioProfesorController extends Controller
             ]);
             $aulaEdifExpr = $edifNames ? 'COALESCE('.implode(', ', $edifNames).')' : 'NULL';
 
-            // si existe building_programs y hay un FK plausible, lo usamos para obtener building_name
             if ($schema->hasTable('building_programs')) {
                 foreach (['building_program_id','building_id','edificio_id','bp_id'] as $fk) {
                     if ($schema->hasColumn($this->T_AULAS, $fk)) { $a_bp_fk = $fk; $joinBP = true; break; }
                 }
                 if ($joinBP) {
-                    // preferimos bp.building_name; si no, el que haya en salones
                     $aulaEdifExpr = 'COALESCE(bp.building_name, '.$aulaEdifExpr.')';
                 }
             }
 
-            // Resultado final: "NRO-LETRA" (añade -LETRA solo si hay edificio)
             $aulaExpr = "TRIM(CONCAT({$aulaExprBase}, CASE WHEN {$aulaEdifExpr} IS NOT NULL AND {$aulaEdifExpr} <> '' THEN CONCAT('-', RIGHT(TRIM({$aulaEdifExpr}),1)) ELSE '' END))";
         }
 
-        // ====== LABS (sin cambio) ======
         $labIdCol = null; $labExpr = 'NULL';
         if ($this->T_LABS) {
             foreach (['lab_id','laboratorio_id','laboratory_id','id'] as $c) {
@@ -156,7 +148,6 @@ class HorarioProfesorController extends Controller
             if ($labNames) $labExpr = 'COALESCE('.implode(', ', $labNames).')';
         }
 
-        // ====== columnas de horarios ======
         $hasTeacher   = $schema->hasColumn($this->T_HORARIOS,'teacher_id');
         $hasSubject   = $schema->hasColumn($this->T_HORARIOS,'subject_id');
         $hasGroup     = $schema->hasColumn($this->T_HORARIOS,'group_id');
@@ -365,23 +356,99 @@ class HorarioProfesorController extends Controller
         $profesor = DB::table('teachers')->where('teacher_id', $profesor_id)->first();
         abort_unless($profesor, 404, 'Profesor no encontrado');
 
+        $schema = DB::getSchemaBuilder();
+
+        $TAULAS = $this->T_AULAS;
+        if (!$TAULAS || !$schema->hasTable($TAULAS)) {
+            if     ($schema->hasTable('classrooms')) $TAULAS = 'classrooms';
+            elseif ($schema->hasTable('salones'))    $TAULAS = 'salones';
+            else                                     $TAULAS = null;
+        }
+
+        $TLABS = $this->T_LABS;
+        if (!$TLABS || !$schema->hasTable($TLABS)) {
+            if     ($schema->hasTable('labs'))          $TLABS = 'labs';
+            elseif ($schema->hasTable('laboratories'))  $TLABS = 'laboratories';
+            elseif ($schema->hasTable('laboratorios'))  $TLABS = 'laboratorios';
+            else                                        $TLABS = null;
+        }
+
+        $roomCol = null;
+        foreach (['classroom_id','salon_id','room_id'] as $c) {
+            if ($schema->hasColumn('schedule_assignments', $c)) { $roomCol = $c; break; }
+        }
+        $labCol = null;
+        foreach (['lab_id','laboratorio_id','laboratory_id'] as $c) {
+            if ($schema->hasColumn('schedule_assignments', $c)) { $labCol = $c; break; }
+        }
+
+        $aulaIdCol = null;
+        $aulaNombreExpr = 'NULL';
+        $aulaBuildingExpr = 'NULL';
+        if ($TAULAS) {
+            foreach (['classroom_id','salon_id','id'] as $c) {
+                if ($schema->hasColumn($TAULAS, $c)) { $aulaIdCol = $c; break; }
+            }
+            $aulaNombreCols = array_filter([
+                $schema->hasColumn($TAULAS,'classroom_name') ? 'r.classroom_name' : null,
+                $schema->hasColumn($TAULAS,'nombre')         ? 'r.nombre'         : null,
+                $schema->hasColumn($TAULAS,'name')           ? 'r.name'           : null,
+                $schema->hasColumn($TAULAS,'room_name')      ? 'r.room_name'      : null,
+                $schema->hasColumn($TAULAS,'numero')         ? 'r.numero'         : null,
+            ]);
+            if ($aulaNombreCols) {
+                $aulaNombreExpr = 'COALESCE('.implode(', ', $aulaNombreCols).')';
+            }
+
+            $buildingCols = array_filter([
+                $schema->hasColumn($TAULAS,'building')      ? 'r.building'      : null,
+                $schema->hasColumn($TAULAS,'building_name') ? 'r.building_name' : null,
+                $schema->hasColumn($TAULAS,'edificio')      ? 'r.edificio'      : null,
+            ]);
+            if ($buildingCols) {
+                $aulaBuildingExpr = 'COALESCE('.implode(', ', $buildingCols).')';
+            }
+        }
+
+        $labIdCol = null;
+        $labNombreExpr = 'NULL';
+        if ($TLABS) {
+            foreach (['lab_id','laboratorio_id','laboratory_id','id'] as $c) {
+                if ($schema->hasColumn($TLABS, $c)) { $labIdCol = $c; break; }
+            }
+            $labNombreCols = array_filter([
+                $schema->hasColumn($TLABS,'lab_name')         ? 'l.lab_name'         : null,
+                $schema->hasColumn($TLABS,'laboratory_name')  ? 'l.laboratory_name'  : null,
+                $schema->hasColumn($TLABS,'nombre')           ? 'l.nombre'           : null,
+                $schema->hasColumn($TLABS,'name')             ? 'l.name'             : null,
+            ]);
+            if ($labNombreCols) {
+                $labNombreExpr = 'COALESCE('.implode(', ', $labNombreCols).')';
+            }
+        }
+
         $rows = DB::table('schedule_assignments as sa')
             ->join('subjects as s', 's.subject_id', '=', 'sa.subject_id')
             ->join('groups as g', 'g.group_id', '=', 'sa.group_id')
-            ->leftJoin('classrooms as r', 'r.classroom_id', '=', 'sa.classroom_id')
-            ->leftJoin('labs as l', 'l.lab_id', '=', 'sa.lab_id')
+            ->when($TAULAS && $aulaIdCol && $roomCol, function($q) use ($TAULAS, $aulaIdCol, $roomCol) {
+                $q->leftJoin("$TAULAS as r", "r.$aulaIdCol", '=', "sa.$roomCol");
+            })
+            ->when($TLABS && $labIdCol && $labCol, function($q) use ($TLABS, $labIdCol, $labCol) {
+                $q->leftJoin("$TLABS as l", "l.$labIdCol", '=', "sa.$labCol");
+            })
             ->where('sa.teacher_id', $profesor_id)
             ->orderBy('sa.schedule_day')
             ->orderBy('sa.start_time')
-            ->select([
-                'sa.schedule_day as dia',
-                'sa.start_time',
-                'sa.end_time',
-                's.subject_name',
-                'g.group_name',
-                'r.classroom_name',
-                'l.lab_name',
-            ])
+            ->selectRaw("
+                sa.schedule_day as dia,
+                sa.start_time,
+                sa.end_time,
+                s.subject_name,
+                g.group_name,
+                $aulaNombreExpr   as aula_numero,
+                $aulaBuildingExpr as aula_building,
+                $labNombreExpr    as lab_name
+            ")
             ->get();
 
         $dias = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -395,37 +462,46 @@ class HorarioProfesorController extends Controller
         }
 
         $tabla = [];
-        foreach ($horas as $h) {
-            foreach ($dias as $d) {
-                $tabla[$h][$d] = '';
-            }
-        }
+        foreach ($horas as $h) foreach ($dias as $d) { $tabla[$h][$d] = ''; }
 
         foreach ($rows as $r) {
             $hLabel = date('H:i', strtotime($r->start_time)) . ' - ' . date('H:i', strtotime($r->end_time));
-            $dia = ucfirst(strtolower($r->dia));
+            $dia = $this->canonicalDay($r->dia);
             if (!in_array($hLabel, $horas) || !in_array($dia, $dias)) continue;
 
+            $espacio = null;
+            if (!empty($r->lab_name)) {
+                $espacio = $r->lab_name;
+            } elseif (!empty($r->aula_numero)) {
+                $num = trim((string)$r->aula_numero);
+                $letra = '';
+                $building = trim((string)($r->aula_building ?? ''));
+                if ($building !== '') {
+                    if (strpos($building, '-') !== false) {
+                        $letra = substr($building, strrpos($building, '-') + 1);
+                    } elseif (preg_match('/([A-Z])$/i', $building, $m)) {
+                        $letra = $m[1];
+                    } else {
+                        $letra = $building;
+                    }
+                }
+                $letra = strtoupper($letra);
+                $espacio = $letra !== '' ? ($num . '-' . $letra) : $num;
+            }
+
             $contenido = $r->subject_name . ' — ' . $r->group_name;
-            if (!empty($r->lab_name) || !empty($r->classroom_name)) {
-                $contenido .= ' — ' . ($r->lab_name ?: $r->classroom_name);
+            if (!empty($espacio)) {
+                $contenido .= ' — ' . $espacio;
             }
 
             $tabla[$hLabel][$dia] = $contenido;
         }
 
-        // ===============================
-        // Escribimos en la plantilla
-        // ===============================
         $templatePath = public_path('plantilla.xlsx');
         $spreadsheet = IOFactory::load($templatePath);
         $sheet = $spreadsheet->getActiveSheet();
-
-        // encabezado
         $sheet->setCellValue('C3',  $profesor->teacher_name);
         $sheet->setCellValue('G3', is_null($profesor->hours) ? 0 : (int)$profesor->hours);
-
-        // filas por hora
         $fila = 6;
         foreach ($horas as $h) {
             $sheet->setCellValue("A{$fila}", $h);
@@ -436,10 +512,6 @@ class HorarioProfesorController extends Controller
             }
             $fila++;
         }
-
-        // ===============================
-        // Descargar
-        // ===============================
         $fileName = 'Horario_'.$profesor->teacher_name.'_'.now()->format('Ymd_His').'.xlsx';
         $filePath = storage_path("app/tmp/{$fileName}");
         @mkdir(dirname($filePath), 0775, true);
