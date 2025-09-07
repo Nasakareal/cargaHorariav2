@@ -243,8 +243,10 @@ class HorarioSalonController extends Controller
     protected function listaEspaciosParaSelector()
     {
         $schema = DB::getSchemaBuilder();
+
         $aulaCols = array_values(array_filter(['classroom_name','nombre','name'], fn($c) => $schema->hasColumn($this->T_AULAS, $c)));
         $labCols  = array_values(array_filter(['lab_name','nombre','name'],        fn($c) => $schema->hasColumn($this->T_LABS,  $c)));
+
         $aulaBase = $aulaCols
             ? 'COALESCE('.implode(', ', array_map(fn($c)=>"a.$c", $aulaCols)).')'
             : "CONCAT('Aula ', a.classroom_id)";
@@ -254,11 +256,11 @@ class HorarioSalonController extends Controller
             : "CONCAT('Lab ', l.lab_id)";
 
         $aulaExpr = $schema->hasColumn($this->T_AULAS, 'building')
-            ? "CONCAT(($aulaBase), COALESCE(RIGHT(a.building,1), ''))"
+            ? "CONCAT(COALESCE(RIGHT(a.building,1), ''), ($aulaBase))"
             : $aulaBase;
 
         $labExpr  = $schema->hasColumn($this->T_LABS, 'building')
-            ? "CONCAT(($labBase), COALESCE(RIGHT(l.building,1), ''))"
+            ? "CONCAT(COALESCE(RIGHT(l.building,1), ''), ($labBase))"
             : $labBase;
 
         $aulas = DB::table($this->T_AULAS.' as a')
@@ -273,7 +275,6 @@ class HorarioSalonController extends Controller
             ->sortBy('nombre', SORT_NATURAL|SORT_FLAG_CASE)
             ->values();
     }
-
 
     protected function canonicalDay(?string $d): string
     {

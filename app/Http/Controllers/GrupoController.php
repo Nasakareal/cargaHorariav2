@@ -69,7 +69,6 @@ class GrupoController extends Controller
         return view('grupos.index', compact('grupos'));
     }
 
-    
     /* =================== CREATE =================== */
     public function create()
         {
@@ -321,7 +320,6 @@ class GrupoController extends Controller
                     ->get();
 
                 if ($conflictos->isNotEmpty()) {
-                    // armamos un mensaje amigable con hasta 6 conflictos
                     $lista = $conflictos->take(6)->map(function($r){
                         return "{$r->schedule_day} {$r->start_time}-{$r->end_time} (".$r->group_name.")";
                     })->implode('<br>');
@@ -345,6 +343,26 @@ class GrupoController extends Controller
                 'lab_assigned'       => $request->lab_assigned ?: null,
                 'fyh_actualizacion'  => now(),
             ]);
+
+            // === Propagar aula al horario: llenar classroom_id SOLO donde está NULL y no es laboratorio ===
+            if ($request->filled('classroom_assigned')) {
+                $schema = DB::getSchemaBuilder();
+                $classroomId = (int) $request->classroom_assigned;
+
+                $updateData = ['classroom_id' => $classroomId];
+                if ($schema->hasColumn('schedule_assignments', 'fyh_actualizacion')) {
+                    $updateData['fyh_actualizacion'] = now();
+                }
+
+                DB::table('schedule_assignments')
+                    ->where('group_id', (int) $id)
+                    ->whereNull('lab_id')          // solo sesiones NO de laboratorio
+                    ->whereNull('classroom_id')    // solo las que no tienen aula aún
+                    ->when($schema->hasColumn('schedule_assignments','estado'), function($q){
+                        $q->whereIn('estado', ['1','ACTIVO','activo']);
+                    })
+                    ->update($updateData);
+            }
 
             $this->vincularMateriasAlGrupo((int)$id);
 
