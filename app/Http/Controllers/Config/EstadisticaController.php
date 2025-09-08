@@ -13,7 +13,9 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class EstadisticaController extends Controller
 {
-    private string $templatePath;
+    /** Plantillas */
+    private string $tplProfesor;   // plantilla.xlsx
+    private string $tplGrupo;      // plantillagrupo.xlsx
 
     /** Columnas por día (coincide con tus scripts) */
     private array $mapDias = [
@@ -63,7 +65,14 @@ class EstadisticaController extends Controller
 
     public function __construct()
     {
-        $this->templatePath = resource_path('plantillas/plantilla.xlsx');
+        // Rutas de plantillas (primer intento en resources/, fallback a public/)
+        $p1 = resource_path('plantillas/plantilla.xlsx');
+        $p2 = public_path('plantilla.xlsx');
+        $g1 = resource_path('plantillas/plantillagrupo.xlsx');
+        $g2 = public_path('plantillagrupo.xlsx');
+
+        $this->tplProfesor = is_file($p1) ? $p1 : $p2;
+        $this->tplGrupo    = is_file($g1) ? $g1 : $g2;
     }
 
     public function index()
@@ -74,7 +83,7 @@ class EstadisticaController extends Controller
     /** ===================== EXPORTS ===================== */
 
     /** ZIP: un Excel por PROFESOR (como tu script 1) */
-    public function exportHorariosProfesores()
+    public function exportHorariosProfesores(): BinaryFileResponse
     {
         // Evita timeout y da aire a PhpSpreadsheet
         @set_time_limit(0);
@@ -97,8 +106,8 @@ class EstadisticaController extends Controller
         $zipPath = storage_path('app/tmp/'.$zipName);
         $this->ensureDir(dirname($zipPath));
 
-        $zip = new \ZipArchive();
-        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+        $zip = new ZipArchive();
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             return redirect()->route('configuracion.estadisticas.index')
                 ->with('error', 'No se pudo crear el ZIP en el servidor.');
         }
@@ -127,91 +136,97 @@ class EstadisticaController extends Controller
         $zip->close();
         $this->cleanupDir(storage_path('app/tmp/xlsx_prof'));
 
-        // Devuelve descarga (puede tardar: ya no hay timeout)
         return response()->download($zipPath, $zipName)->deleteFileAfterSend(true);
     }
 
-
-    /** ZIP: un Excel por GRUPO (como tu script 2) */
+    /**
+     * ZIP: un Excel por GRUPO (como tu script individual) — STREAMING para evitar timeouts
+     */
     public function exportHorariosGrupos(): BinaryFileResponse
     {
-        $rows = $this->fetchHorariosGrupoTodos();
-        if (empty($rows)) {
-            return back()->with('error', 'No se encontraron horarios.');
-        }
+        @set_time_limit(0);
+        @ini_set('max_execution_time', '0');
+        @ini_set('memory_limit', '1024M');
 
-        // Agrupar por nombre de grupo (tal cual tu script)
-        $porGrupo = [];
-        foreach ($rows as $r) {
-            $gname = $r['group_name'] ?? 'SIN_NOMBRE';
-            $porGrupo[$gname][] = $r;
-        }
+        // Cursor en vez de get(): procesa grupo por grupo sin cargar todo a memoria
+        $cursor = DB::table('schedule_assignments as sa')
+            ->join('subjects as s', 's.subject_id', '=', 'sa.subject_id')
+            ->join('groups as g', 'g.group_id', '=', 'sa.group_id')
+            ->leftJoin('programs as p', 'p.program_id', '=', 'g.program_id')
+            ->leftJoin('teachers as t', 't.teacher_id', '=', 'sa.teacher_id')
+            ->leftJoin('classrooms as r', 'r.classroom_id', '=', 'sa.classroom_id')
+            ->leftJoin('labs as l', 'l.lab_id', '=', 'sa.lab_id')
+            ->orderBy('g.group_name')
+            ->orderBy('sa.schedule_day')
+            ->orderBy('sa.start_time')
+            ->selectRaw("
+                g.group_name,
+                COALESCE(p.program_name,'')      AS program_name,
+                sa.schedule_day                  AS day,
+                sa.start_time                    AS start_time,
+                sa.end_time                      AS end_time,
+                s.subject_name                   AS subject_name,
+                t.teacher_name                   AS teacher_name,
+                r.classroom_name                 AS room_name,
+                r.building                       AS building,
+                l.lab_name                       AS lab_name
+            ")
+            ->cursor(); // streaming
 
         $zipName = 'Horarios_Por_Grupo_'.now()->format('Ymd_His').'.zip';
         $zipPath = storage_path('app/tmp/'.$zipName);
         $this->ensureDir(dirname($zipPath));
 
         $zip = new ZipArchive();
-        $zip->open($zipPath, ZipArchive::CREATE|ZipArchive::OVERWRITE);
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            return back()->with('error', 'No se pudo crear el ZIP en el servidor.');
+        }
 
-        foreach ($porGrupo as $groupName => $items) {
-            if (empty($items)) continue;
+        $currentGroup   = null;
+        $currentProgram = '';
+        $buffer         = [];
 
+        foreach ($cursor as $r) {
+            $gname = (string)$r->group_name;
+
+            // Cuando cambia de grupo, volcar archivo del grupo anterior
+            if ($currentGroup !== null && $gname !== $currentGroup) {
+                $xlsxPath = $this->buildGrupoXlsx(
+                    groupName: $currentGroup,
+                    programName: $currentProgram,
+                    horarios: $buffer,
+                    incompletos: false
+                );
+                if (is_file($xlsxPath)) {
+                    $zip->addFile($xlsxPath, basename($xlsxPath));
+                }
+                // reset
+                $buffer = [];
+            }
+
+            $currentGroup   = $gname;
+            $currentProgram = $currentProgram ?: (string)$r->program_name;
+
+            $buffer[] = [
+                'day'         => (string)$r->day,
+                'start_time'  => (string)$r->start_time,
+                'end_time'    => (string)$r->end_time,
+                'subject_name'=> (string)$r->subject_name,
+                'teacher_name'=> $r->teacher_name,
+                'room_name'   => $r->room_name,
+                'building'    => $r->building,
+                'lab_name'    => $r->lab_name,
+            ];
+        }
+
+        // Último grupo en buffer
+        if ($currentGroup !== null && !empty($buffer)) {
             $xlsxPath = $this->buildGrupoXlsx(
-                groupName: $groupName,
-                horarios: $items,
+                groupName: $currentGroup,
+                programName: $currentProgram,
+                horarios: $buffer,
                 incompletos: false
             );
-
-            $zip->addFile($xlsxPath, basename($xlsxPath));
-        }
-
-        $zip->close();
-        $this->cleanupDir(storage_path('app/tmp/xlsx_grupo'));
-
-        return response()->download($zipPath)->deleteFileAfterSend(true);
-    }
-
-    /** ZIP: un Excel por GRUPO con faltantes de profesor (como tu script 3) */
-    public function exportHorariosGruposSinProfesor()
-    {
-        // Evita timeout si hay muchos grupos
-        @set_time_limit(0);
-        @ini_set('max_execution_time', '0');
-        @ini_set('memory_limit', '1024M');
-
-        $rows = $this->fetchHorariosGrupoIncompletos();
-        if (empty($rows)) {
-            return redirect()->route('configuracion.estadisticas.index')
-                ->with('error', 'No se encontraron grupos con materias sin profesor.');
-        }
-
-        // Agrupar por nombre de grupo
-        $porGrupo = [];
-        foreach ($rows as $r) {
-            $gname = $r['group_name'] ?? 'SIN_NOMBRE';
-            $porGrupo[$gname][] = $r;
-        }
-
-        $zipName = 'Horarios_Por_Grupo_Incompletos_'.now()->format('Ymd_His').'.zip';
-        $zipPath = storage_path('app/tmp/'.$zipName);
-        $this->ensureDir(dirname($zipPath));
-
-        $zip = new \ZipArchive();
-        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
-            return redirect()->route('configuracion.estadisticas.index')
-                ->with('error', 'No se pudo crear el ZIP en el servidor.');
-        }
-
-        foreach ($porGrupo as $groupName => $items) {
-            if (empty($items)) continue;
-
-            $xlsxPath = $this->buildGrupoXlsx(
-                groupName: $groupName,
-                horarios: $items,
-                incompletos: true
-            );
-
             if (is_file($xlsxPath)) {
                 $zip->addFile($xlsxPath, basename($xlsxPath));
             }
@@ -223,6 +238,101 @@ class EstadisticaController extends Controller
         return response()->download($zipPath, $zipName)->deleteFileAfterSend(true);
     }
 
+    /**
+     * ZIP: un Excel por GRUPO con faltantes de profesor — STREAMING y mismo formato
+     */
+    public function exportHorariosGruposSinProfesor(): BinaryFileResponse
+    {
+        @set_time_limit(0);
+        @ini_set('max_execution_time', '0');
+        @ini_set('memory_limit', '1024M');
+
+        $cursor = DB::table('schedule_assignments as sa')
+            ->join('groups as g', 'g.group_id', '=', 'sa.group_id')
+            ->leftJoin('programs as p', 'p.program_id', '=', 'g.program_id')
+            ->join('subjects as s', 's.subject_id', '=', 'sa.subject_id')
+            ->leftJoin('teachers as t', 't.teacher_id', '=', 'sa.teacher_id')
+            ->leftJoin('classrooms as r', 'r.classroom_id', '=', 'sa.classroom_id')
+            ->leftJoin('labs as l', 'l.lab_id', '=', 'sa.lab_id')
+            ->whereNull('sa.teacher_id')
+            ->orderBy('g.group_name')
+            ->orderBy('sa.schedule_day')
+            ->orderBy('sa.start_time')
+            ->selectRaw("
+                g.group_name,
+                COALESCE(p.program_name,'')      AS program_name,
+                sa.schedule_day                  AS day,
+                sa.start_time                    AS start_time,
+                sa.end_time                      AS end_time,
+                s.subject_name                   AS subject_name,
+                t.teacher_name                   AS teacher_name,
+                r.classroom_name                 AS room_name,
+                r.building                       AS building,
+                l.lab_name                       AS lab_name
+            ")
+            ->cursor();
+
+        $zipName = 'Horarios_Por_Grupo_Incompletos_'.now()->format('Ymd_His').'.zip';
+        $zipPath = storage_path('app/tmp/'.$zipName);
+        $this->ensureDir(dirname($zipPath));
+
+        $zip = new ZipArchive();
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            return back()->with('error', 'No se pudo crear el ZIP en el servidor.');
+        }
+
+        $currentGroup   = null;
+        $currentProgram = '';
+        $buffer         = [];
+
+        foreach ($cursor as $r) {
+            $gname = (string)$r->group_name;
+
+            if ($currentGroup !== null && $gname !== $currentGroup) {
+                $xlsxPath = $this->buildGrupoXlsx(
+                    groupName: $currentGroup,
+                    programName: $currentProgram,
+                    horarios: $buffer,
+                    incompletos: true
+                );
+                if (is_file($xlsxPath)) {
+                    $zip->addFile($xlsxPath, basename($xlsxPath));
+                }
+                $buffer = [];
+            }
+
+            $currentGroup   = $gname;
+            $currentProgram = $currentProgram ?: (string)$r->program_name;
+
+            $buffer[] = [
+                'day'         => (string)$r->day,
+                'start_time'  => (string)$r->start_time,
+                'end_time'    => (string)$r->end_time,
+                'subject_name'=> (string)$r->subject_name,
+                'teacher_name'=> $r->teacher_name, // null
+                'room_name'   => $r->room_name,
+                'building'    => $r->building,
+                'lab_name'    => $r->lab_name,
+            ];
+        }
+
+        if ($currentGroup !== null && !empty($buffer)) {
+            $xlsxPath = $this->buildGrupoXlsx(
+                groupName: $currentGroup,
+                programName: $currentProgram,
+                horarios: $buffer,
+                incompletos: true
+            );
+            if (is_file($xlsxPath)) {
+                $zip->addFile($xlsxPath, basename($xlsxPath));
+            }
+        }
+
+        $zip->close();
+        $this->cleanupDir(storage_path('app/tmp/xlsx_grupo'));
+
+        return response()->download($zipPath, $zipName)->deleteFileAfterSend(true);
+    }
 
     /** ===================== DATA ===================== */
 
@@ -248,8 +358,8 @@ class EstadisticaController extends Controller
                 s.subject_name      AS subject_name,
                 sh.shift_name       AS shift_name,
                 r.classroom_name    AS room_name,
+                r.building          AS building,
                 l.lab_name          AS lab_name,
-                RIGHT(r.building, 1) AS building_last_char,
                 g.group_name        AS group_name
             ")
             ->get();
@@ -257,104 +367,14 @@ class EstadisticaController extends Controller
         $out = [];
         foreach ($rows as $r) {
             $out[] = [
-                'day'               => (string)$r->day,
-                'start_time'        => (string)$r->start_time,
-                'end_time'          => (string)$r->end_time,
-                'subject_name'      => (string)$r->subject_name,
-                'group_name'        => (string)$r->group_name,
-                'room_name'         => $r->room_name,
-                'lab_name'          => $r->lab_name,
-                'building_last_char'=> $r->building_last_char,
-            ];
-        }
-        return $out;
-    }
-
-    private function fetchHorariosGrupoTodos(): array
-    {
-        $rows = DB::table('schedule_assignments as sa')
-            ->join('subjects as s', 's.subject_id', '=', 'sa.subject_id')
-            ->join('groups as g', 'g.group_id', '=', 'sa.group_id')
-            ->join('shifts as sh', 'g.turn_id', '=', 'sh.shift_id')
-            ->leftJoin('classrooms as r', 'r.classroom_id', '=', 'sa.classroom_id')
-            ->leftJoin('labs as l', 'l.lab_id', '=', 'sa.lab_id')
-            ->leftJoin('teachers as t', 't.teacher_id', '=', 'sa.teacher_id')
-            ->orderBy('g.group_name')
-            ->orderBy('sa.schedule_day')
-            ->orderBy('sa.start_time')
-            ->selectRaw("
-                g.group_id,
-                g.group_name,
-                sa.schedule_day     AS day,
-                sa.start_time       AS start_time,
-                sa.end_time         AS end_time,
-                sa.tipo_espacio     AS tipo_espacio,
-                s.subject_name      AS subject_name,
-                sh.shift_name       AS shift_name,
-                r.classroom_name    AS room_name,
-                l.lab_name          AS lab_name,
-                RIGHT(r.building, 1) AS building_last_char,
-                t.teacher_name      AS teacher_name
-            ")
-            ->get();
-
-        $out = [];
-        foreach ($rows as $r) {
-            $out[] = [
-                'group_name'        => (string)$r->group_name,
-                'day'               => (string)$r->day,
-                'start_time'        => (string)$r->start_time,
-                'end_time'          => (string)$r->end_time,
-                'subject_name'      => (string)$r->subject_name,
-                'teacher_name'      => $r->teacher_name,
-                'room_name'         => $r->room_name,
-                'lab_name'          => $r->lab_name,
-                'building_last_char'=> $r->building_last_char,
-            ];
-        }
-        return $out;
-    }
-
-    private function fetchHorariosGrupoIncompletos(): array
-    {
-        $rows = DB::table('schedule_assignments as sa')
-            ->join('subjects as s', 's.subject_id', '=', 'sa.subject_id')
-            ->join('groups as g', 'g.group_id', '=', 'sa.group_id')
-            ->join('shifts as sh', 'g.turn_id', '=', 'sh.shift_id')
-            ->leftJoin('classrooms as r', 'r.classroom_id', '=', 'sa.classroom_id')
-            ->leftJoin('teachers as t', 't.teacher_id', '=', 'sa.teacher_id')
-            ->whereIn('g.group_id', function($q){
-                $q->select('group_id')->from('schedule_assignments')->whereNull('teacher_id');
-            })
-            ->orderBy('g.group_name')
-            ->orderBy('sa.schedule_day')
-            ->orderBy('sa.start_time')
-            ->selectRaw("
-                g.group_id,
-                g.group_name,
-                sa.schedule_day     AS day,
-                sa.start_time       AS start_time,
-                sa.end_time         AS end_time,
-                sa.tipo_espacio     AS tipo_espacio,
-                s.subject_name      AS subject_name,
-                sh.shift_name       AS shift_name,
-                r.classroom_name    AS room_name,
-                RIGHT(r.building, 1) AS building_last_char,
-                t.teacher_name      AS teacher_name
-            ")
-            ->get();
-
-        $out = [];
-        foreach ($rows as $r) {
-            $out[] = [
-                'group_name'        => (string)$r->group_name,
-                'day'               => (string)$r->day,
-                'start_time'        => (string)$r->start_time,
-                'end_time'          => (string)$r->end_time,
-                'subject_name'      => (string)$r->subject_name,
-                'teacher_name'      => $r->teacher_name, // puede ser null
-                'room_name'         => $r->room_name,
-                'building_last_char'=> $r->building_last_char,
+                'day'          => (string)$r->day,
+                'start_time'   => (string)$r->start_time,
+                'end_time'     => (string)$r->end_time,
+                'subject_name' => (string)$r->subject_name,
+                'group_name'   => (string)$r->group_name,
+                'room_name'    => $r->room_name,
+                'building'     => $r->building,
+                'lab_name'     => $r->lab_name,
             ];
         }
         return $out;
@@ -365,7 +385,7 @@ class EstadisticaController extends Controller
     /** Crea XLSX para PROFESOR (coloca nombre, clasificación, total horas) */
     private function buildProfesorXlsx(string $teacherName, string $clasificacion, float $totalHoras, array $horarios): string
     {
-        $spreadsheet = IOFactory::load($this->templatePath);
+        $spreadsheet = IOFactory::load($this->tplProfesor);
         $sheet = $spreadsheet->getActiveSheet();
 
         // Encabezados como en tu script
@@ -380,7 +400,6 @@ class EstadisticaController extends Controller
         $sheet->getStyle('G4')->getNumberFormat()->setFormatCode('0.00');
         $sheet->getStyle('G4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setVertical(Alignment::VERTICAL_CENTER);
 
-        // Pinta celdas según mapas
         foreach ($horarios as $h) {
             $dia  = $this->normDia($h['day']);
             $hora = $this->hhmm($h['start_time']);
@@ -391,16 +410,23 @@ class EstadisticaController extends Controller
             $col = $this->mapDias[$dia];
             $row = $this->mapHoras[$hora];
 
-            $contenido = $h['subject_name'] . "\n" . $h['group_name'] . "\n";
-            if (!empty($h['room_name'])) {
-                $contenido .= 'Aula: ' . $h['room_name'];
-                if (!empty($h['building_last_char'])) $contenido .= ' (' . $h['building_last_char'] . ')';
-            } elseif (!empty($h['lab_name'])) {
-                $contenido .= 'Lab: ' . $h['lab_name'];
+            // Aula o Lab con prefijo
+            $espacioTxt = '';
+            if (!empty($h['lab_name'])) {
+                $espacioTxt = 'Lab ' . trim((string)$h['lab_name']);
+            } elseif (!empty($h['room_name'])) {
+                $espacioTxt = $this->formatAula($h['room_name'], $h['building']); // "Aula B10"
             }
 
+            // Formato profesor: multilínea (materia, grupo, espacio)
+            $partes = array_filter([
+                $h['subject_name'] ?? '',
+                $h['group_name'] ?? '',
+                $espacioTxt,
+            ], fn($v) => $v !== null && $v !== '');
+
             $cell = $col . $row;
-            $sheet->setCellValue($cell, $contenido);
+            $sheet->setCellValue($cell, implode("\n", $partes));
             $sheet->getStyle($cell)->getAlignment()->setWrapText(true)->setVertical(Alignment::VERTICAL_TOP);
         }
 
@@ -415,37 +441,71 @@ class EstadisticaController extends Controller
         return $filename;
     }
 
-    /** Crea XLSX para GRUPO (completo o “incompleto” con mapa de filas especial) */
-    private function buildGrupoXlsx(string $groupName, array $horarios, bool $incompletos): string
+    /**
+     * Crea XLSX para GRUPO (completo o “incompleto”) usando la MISMA plantilla del individual
+     * y MISMO FORMATO: "Materia — Aula B10 — PROFESOR" (o "— Sin profesor").
+     */
+    private function buildGrupoXlsx(string $groupName, string $programName, array $horarios, bool $incompletos): string
     {
-        $spreadsheet = IOFactory::load($this->templatePath);
+        $spreadsheet = IOFactory::load($this->tplGrupo);
         $sheet = $spreadsheet->getActiveSheet();
 
-        $mapHoras = $incompletos ? $this->mapHorasIncompletos : $this->mapHoras;
+        // Encabezados igual que el individual
+        $sheet->setCellValue('G3', $groupName);
+        $sheet->setCellValue('C3', $programName);
 
-        foreach ($horarios as $h) {
-            $dia  = $this->normDia($h['day']);
-            $hora = $this->hhmm($h['start_time']);
+        // Rango de horas del individual: 07:00-20:00 por filas a partir de la 6
+        $dias = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+        $horas = [];
+        $t   = \Carbon\Carbon::createFromFormat('H:i', '07:00');
+        $end = \Carbon\Carbon::createFromFormat('H:i', '20:00');
+        while ($t < $end) {
+            $nxt = $t->copy()->addHour();
+            $horas[] = $t->format('H:i') . ' - ' . $nxt->format('H:i');
+            $t = $nxt;
+        }
 
-            if (!isset($this->mapDias[$dia])) continue;
-            if (!isset($mapHoras[$hora])) continue;
+        // Matriz [horaLabel][dia] => texto
+        $tabla = [];
+        foreach ($horas as $h) foreach ($dias as $d) { $tabla[$h][$d] = ''; }
 
-            $col = $this->mapDias[$dia];
-            $row = $mapHoras[$hora];
+        foreach ($horarios as $r) {
+            $hLabel = $this->hhmm($r['start_time']) . ' - ' . $this->hhmm($r['end_time']);
+            $dia    = $this->normDia($r['day']);
+            if (!in_array($hLabel, $horas, true) || !in_array($dia, $dias, true)) continue;
 
-            $prof  = $h['teacher_name'] ?: ($incompletos ? 'SIN PROFESOR' : '');
-            $contenido = $h['subject_name'] . "\n" . $prof . "\n";
-
-            if (!empty($h['room_name'])) {
-                $contenido .= 'Aula: ' . $h['room_name'];
-                if (!empty($h['building_last_char'])) $contenido .= ' (' . $h['building_last_char'] . ')';
-            } elseif (!empty($h['lab_name'] ?? null)) {
-                $contenido .= 'Lab: ' . ($h['lab_name'] ?? '');
+            // Aula/Lab con prefijo
+            $espacio = null;
+            if (!empty($r['lab_name'])) {
+                $espacio = 'Lab ' . trim((string)$r['lab_name']);
+            } elseif (!empty($r['room_name'])) {
+                $espacio = $this->formatAula($r['room_name'], $r['building']); // "Aula B10"
             }
 
-            $cell = $col . $row;
-            $sheet->setCellValue($cell, $contenido);
-            $sheet->getStyle($cell)->getAlignment()->setWrapText(true)->setVertical(Alignment::VERTICAL_TOP);
+            // Texto en una sola línea, como el individual
+            $texto = $r['subject_name'];
+            if (!empty($espacio)) {
+                $texto .= ' — ' . $espacio;
+            }
+            if (!empty($r['teacher_name'])) {
+                $texto .= ' — ' . $r['teacher_name'];
+            } else {
+                $texto .= ' — ' . ($incompletos ? 'Sin profesor' : 'Sin profesor');
+            }
+
+            $tabla[$hLabel][$dia] = $texto;
+        }
+
+        // Volcado a la plantilla (A6 = hora; B..G = días)
+        $fila = 6;
+        foreach ($horas as $h) {
+            $sheet->setCellValue("A{$fila}", $h);
+            $col = 'B';
+            foreach ($dias as $d) {
+                $sheet->setCellValue("{$col}{$fila}", $tabla[$h][$d]);
+                $col++;
+            }
+            $fila++;
         }
 
         $dir = storage_path('app/tmp/xlsx_grupo');
@@ -463,7 +523,6 @@ class EstadisticaController extends Controller
 
     private function hhmm(string $time): string
     {
-        // Asegura formato HH:MM
         return date('H:i', strtotime($time));
     }
 
@@ -501,5 +560,163 @@ class EstadisticaController extends Controller
     private function safeName(string $s): string
     {
         return preg_replace('/[^A-Za-z0-9_\-]/', '_', $s);
+    }
+
+    /**
+     * Construye "Aula B10" a partir del número de salón y del edificio.
+     * - $roomName: "10", "B10", "61", etc.
+     * - $building: "Edificio-B", "B", "A", "B-1", etc.
+     */
+    private function formatAula(?string $roomName, ?string $building): string
+    {
+        $num = trim((string)$roomName);
+
+        $letra = '';
+        $b = trim((string)($building ?? ''));
+        if ($b !== '') {
+            if (strpos($b, '-') !== false) {
+                $letra = substr($b, strrpos($b, '-') + 1);
+            } elseif (preg_match('/([A-Z])$/i', $b, $m)) {
+                $letra = $m[1];
+            } else {
+                $letra = $b;
+            }
+        }
+        $letra = strtoupper(trim($letra));
+
+        // Evita duplicar letra si ya viene en el número (p.ej. "B10")
+        if ($letra !== '' && preg_match('/^[A-Z]\d+/i', $num)) {
+            // ya contiene letra inicial, usa tal cual
+            return 'Aula ' . strtoupper($num);
+        }
+
+        return 'Aula ' . trim(($letra ? $letra : '') . $num);
+    }
+
+    /** ===================== (Opcional) EXPORTS INDIVIDUALES QUE ME PASASTE ===================== */
+    /** Si quieres, puedes dejar estos tal cual y sólo adoptan el prefijo "Aula " aquí también. */
+
+    public function exportExcel(int $grupo_id): BinaryFileResponse
+    {
+        $grupo = DB::table('groups as g')
+            ->leftJoin('programs as p', 'p.program_id', '=', 'g.program_id')
+            ->where('g.group_id', $grupo_id)
+            ->select('g.group_id','g.group_name','p.program_name')
+            ->first();
+
+        abort_unless($grupo, 404, 'Grupo no encontrado');
+
+        $rows = DB::table('schedule_assignments as sa')
+            ->join('subjects as s', 's.subject_id', '=', 'sa.subject_id')
+            ->leftJoin('teachers as t', 't.teacher_id', '=', 'sa.teacher_id')
+            ->leftJoin('classrooms as r', 'r.classroom_id', '=', 'sa.classroom_id')
+            ->leftJoin('labs as l', 'l.lab_id', '=', 'sa.lab_id')
+            ->where('sa.group_id', $grupo_id)
+            ->orderBy('sa.schedule_day')
+            ->orderBy('sa.start_time')
+            ->select([
+                'sa.schedule_day as dia',
+                'sa.start_time',
+                'sa.end_time',
+                's.subject_name',
+                't.teacher_name',
+                'r.classroom_name',
+                'r.building',
+                'l.lab_name',
+            ])
+            ->get();
+
+        $dias = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+        $horas = [];
+        $t = \Carbon\Carbon::createFromFormat('H:i', '07:00');
+        $end = \Carbon\Carbon::createFromFormat('H:i', '20:00');
+        while ($t < $end) {
+            $nxt = $t->copy()->addHour();
+            $horas[] = $t->format('H:i') . ' - ' . $nxt->format('H:i');
+            $t = $nxt;
+        }
+
+        $tabla = [];
+        foreach ($horas as $h) {
+            foreach ($dias as $d) {
+                $tabla[$h][$d] = '';
+            }
+        }
+
+        foreach ($rows as $r) {
+            $hLabel = date('H:i', strtotime($r->start_time)) . ' - ' . date('H:i', strtotime($r->end_time));
+            $dia = ucfirst(strtolower($r->dia));
+            if (!in_array($hLabel, $horas) || !in_array($dia, $dias)) continue;
+
+            $espacio = null;
+            if (!empty($r->lab_name)) {
+                $espacio = 'Lab ' . $r->lab_name;
+            } elseif (!empty($r->classroom_name)) {
+                $espacio = $this->formatAula($r->classroom_name, $r->building); // <-- prefijo Aula
+            }
+
+            $contenido = $r->subject_name;
+            if (!empty($espacio)) {
+                $contenido .= ' — ' . $espacio;
+            }
+            if (!empty($r->teacher_name)) {
+                $contenido .= ' — ' . $r->teacher_name;
+            } else {
+                $contenido .= ' — Sin profesor';
+            }
+
+            $tabla[$hLabel][$dia] = $contenido;
+        }
+
+        $templatePath = $this->tplGrupo; // usa misma plantilla
+        $spreadsheet = IOFactory::load($templatePath);
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $sheet->setCellValue('G3', $grupo->group_name);
+        $sheet->setCellValue('C3', $grupo->program_name);
+
+        $fila = 6;
+        foreach ($horas as $h) {
+            $sheet->setCellValue("A{$fila}", $h);
+            $col = 'B';
+            foreach ($dias as $d) {
+                $sheet->setCellValue("{$col}{$fila}", $tabla[$h][$d]);
+                $col++;
+            }
+            $fila++;
+        }
+
+        $fileName = 'Horario_'.$grupo->group_name.'_'.now()->format('Ymd_His').'.xlsx';
+        $filePath = storage_path("app/tmp/{$fileName}");
+        @mkdir(dirname($filePath), 0775, true);
+
+        IOFactory::createWriter($spreadsheet, 'Xlsx')->save($filePath);
+
+        return response()->download($filePath, $fileName)->deleteFileAfterSend(true);
+    }
+
+    public function exportExcelProfesor(int $profesor_id): BinaryFileResponse
+    {
+        $profesor = DB::table('teachers')->where('teacher_id', $profesor_id)->first();
+        abort_unless($profesor, 404, 'Profesor no encontrado');
+
+        $rows = $this->fetchHorariosProfesor($profesor_id);
+
+        // Calcular total horas
+        $totalHoras = 0;
+        foreach ($rows as $r) {
+            $totalHoras += $this->diffHoras($r['start_time'], $r['end_time']);
+        }
+
+        // Reusar builder de profesor
+        $xlsxPath = $this->buildProfesorXlsx(
+            teacherName: $profesor->teacher_name,
+            clasificacion: $profesor->clasificacion ?? 'Sin clasificar',
+            totalHoras: $totalHoras,
+            horarios: $rows
+        );
+
+        $fileName = basename($xlsxPath);
+        return response()->download($xlsxPath, $fileName)->deleteFileAfterSend(true);
     }
 }
