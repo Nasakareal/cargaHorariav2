@@ -12,17 +12,17 @@ class RegistroActividadController extends Controller
     {
         $q = ActividadGeneral::query();
 
-        // Filtros opcionales
         if ($request->filled('accion'))  $q->where('accion', strtoupper($request->accion));
         if ($request->filled('tabla'))   $q->where('tabla', $request->tabla);
         if ($request->filled('usuario')) $q->where('nombre_usuario', 'like', '%'.$request->usuario.'%');
         if ($request->filled('desde'))   $q->whereDate('fecha', '>=', $request->desde);
         if ($request->filled('hasta'))   $q->whereDate('fecha', '<=', $request->hasta);
 
-        $actividades = $q->orderBy('fecha')->paginate(20)->withQueryString();
+        $actividades = $q->orderBy('fecha', 'desc')->get();
 
         return view('configuracion.registro_actividad.index', compact('actividades'));
     }
+
 
     public function show($id)
     {
