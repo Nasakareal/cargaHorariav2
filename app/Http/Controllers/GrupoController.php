@@ -287,28 +287,33 @@ class GrupoController extends Controller
         ]);
 
         try {
+            $schema  = DB::getSchemaBuilder();
+            $hasEst  = $schema->hasColumn('schedule_assignments','estado');
+            $hasFyh  = $schema->hasColumn('schedule_assignments','fyh_actualizacion');
+
             // Mantener área sincronizada con el programa
             $program = DB::table('programs')->where('program_id', $request->program_id)->first(['area']);
 
-            // ===== Chequeo de EMPALMES si se especificó salón =====
-            if ($request->filled('classroom_assigned')) {
-                $classroomId = (int)$request->classroom_assigned;
+            // === detectar cambio de aula
+            $oldClassroomId = $grupo->classroom_assigned !== null ? (int)$grupo->classroom_assigned : null;
+            $newClassroomId = $request->filled('classroom_assigned') ? (int)$request->classroom_assigned : null;
+            $cambiaAula     = ($newClassroomId !== null && $newClassroomId !== $oldClassroomId);
 
-                // s1: horario del grupo actual (ignoramos sesiones de laboratorio)
-                // s2: cualquier asignación ACTIVA que ya ocupe ese salón y se traslape en día/hora
+            // ===== Chequeo de EMPALMES si se especificó salón nuevo y CAMBIA =====
+            if ($cambiaAula) {
                 $conflictos = DB::table('schedule_assignments as s1')
-                    ->join('schedule_assignments as s2', function($j) use ($classroomId){
+                    ->join('schedule_assignments as s2', function($j) use ($newClassroomId){
                         $j->on('s2.schedule_day', '=', 's1.schedule_day')
-                          ->where('s2.classroom_id', '=', $classroomId)
-                          ->whereIn('s2.estado', ['1','ACTIVO','activo'])
+                          ->where('s2.classroom_id', '=', $newClassroomId)
                           ->whereRaw('s2.start_time < s1.end_time')
                           ->whereRaw('s2.end_time   > s1.start_time');
                     })
                     ->leftJoin('groups as g2', 'g2.group_id', '=', 's2.group_id')
                     ->where('s1.group_id', (int)$id)
-                    ->whereIn('s1.estado', ['1','ACTIVO','activo'])
-                    ->whereNull('s1.lab_id')
-                    ->whereColumn('s2.group_id', '!=', 's1.group_id')
+                    ->whereNull('s1.lab_id') // sólo sesiones NO lab del grupo actual
+                    ->when($hasEst, fn($q) => $q->whereIn('s1.estado', ['1','ACTIVO','activo'])
+                                                 ->whereIn('s2.estado', ['1','ACTIVO','activo']))
+                    ->whereColumn('s2.group_id', '!=', 's1.group_id') // evitar auto-choque
                     ->select([
                         's2.group_id',
                         'g2.group_name',
@@ -323,47 +328,55 @@ class GrupoController extends Controller
                     $lista = $conflictos->take(6)->map(function($r){
                         return "{$r->schedule_day} {$r->start_time}-{$r->end_time} (".$r->group_name.")";
                     })->implode('<br>');
-
                     return back()->withInput()->with('error',
-                        "No se puede asignar el salón seleccionado por empalmes existentes:<br>".$lista.
+                        "No se puede asignar el salón por empalmes existentes en el nuevo salón:<br>".$lista.
                         ($conflictos->count() > 6 ? '<br>…' : '')
                     );
                 }
             }
 
-            // ===== Sin empalmes: actualizamos el grupo =====
-            DB::table('groups')->where('group_id', (int)$id)->update([
-                'group_name'         => $request->group_name,
-                'program_id'         => $request->program_id,
-                'area'               => $program->area ?? null,
-                'term_id'            => $request->term_id,
-                'volume'             => $request->volume ?? 0,
-                'turn_id'            => $request->turn_id,
-                'classroom_assigned' => $request->classroom_assigned ?: null,
-                'lab_assigned'       => $request->lab_assigned ?: null,
-                'fyh_actualizacion'  => now(),
-            ]);
+            // ===== Actualización + propagación en una transacción
+            DB::transaction(function () use ($request, $id, $program, $cambiaAula, $newClassroomId, $hasEst, $hasFyh) {
+                // 1) actualizar datos del grupo
+                DB::table('groups')->where('group_id', (int)$id)->update([
+                    'group_name'         => $request->group_name,
+                    'program_id'         => $request->program_id,
+                    'area'               => $program->area ?? null,
+                    'term_id'            => $request->term_id,
+                    'volume'             => $request->volume ?? 0,
+                    'turn_id'            => $request->turn_id,
+                    'classroom_assigned' => $request->classroom_assigned ?: null,
+                    'lab_assigned'       => $request->lab_assigned ?: null,
+                    'fyh_actualizacion'  => now(),
+                ]);
 
-            // === Propagar aula al horario: llenar classroom_id SOLO donde está NULL y no es laboratorio ===
-            if ($request->filled('classroom_assigned')) {
-                $schema = DB::getSchemaBuilder();
-                $classroomId = (int) $request->classroom_assigned;
+                // 2) PROPAGAR aula al horario:
+                //    - Si CAMBIÓ el aula del grupo: sobreescribir TODAS las sesiones NO-lab del horario con el nuevo salón
+                //    - Si no cambió pero está seteada
+                if ($cambiaAula && $newClassroomId !== null) {
+                    $updateData = ['classroom_id' => $newClassroomId];
+                    if ($hasFyh) { $updateData['fyh_actualizacion'] = now(); }
 
-                $updateData = ['classroom_id' => $classroomId];
-                if ($schema->hasColumn('schedule_assignments', 'fyh_actualizacion')) {
-                    $updateData['fyh_actualizacion'] = now();
+                    DB::table('schedule_assignments')
+                        ->where('group_id', (int)$id)
+                        ->whereNull('lab_id')  // no tocar laboratorios
+                        ->when($hasEst, fn($q) => $q->whereIn('estado', ['1','ACTIVO','activo']))
+                        ->update($updateData);
+                } else if ($request->filled('classroom_assigned')) {
+                    // (comportamiento previo) si no cambió, sólo llenar los NULL
+                    $updateData = ['classroom_id' => (int)$request->classroom_assigned];
+                    if ($hasFyh) { $updateData['fyh_actualizacion'] = now(); }
+
+                    DB::table('schedule_assignments')
+                        ->where('group_id', (int)$id)
+                        ->whereNull('lab_id')
+                        ->whereNull('classroom_id')
+                        ->when($hasEst, fn($q) => $q->whereIn('estado', ['1','ACTIVO','activo']))
+                        ->update($updateData);
                 }
+            });
 
-                DB::table('schedule_assignments')
-                    ->where('group_id', (int) $id)
-                    ->whereNull('lab_id')          // solo sesiones NO de laboratorio
-                    ->whereNull('classroom_id')    // solo las que no tienen aula aún
-                    ->when($schema->hasColumn('schedule_assignments','estado'), function($q){
-                        $q->whereIn('estado', ['1','ACTIVO','activo']);
-                    })
-                    ->update($updateData);
-            }
-
+            // Mantener materias vinculadas
             $this->vincularMateriasAlGrupo((int)$id);
 
             if (class_exists(ActividadGeneral::class)) {
@@ -379,6 +392,7 @@ class GrupoController extends Controller
             return back()->withInput()->with('error','Ocurrió un error inesperado al actualizar el grupo.');
         }
     }
+
 
     /* =================== DESTROY =================== */
     public function destroy($id)
