@@ -41,8 +41,42 @@ class HorarioSalonController extends Controller
             ? "CONCAT(($labBase), COALESCE(RIGHT(l.building,1), ''))"
             : $labBase;
 
+        $gruposAulaExpr = "(
+            SELECT GROUP_CONCAT(g.group_name ORDER BY g.group_name SEPARATOR ', ')
+            FROM `groups` g
+            WHERE g.classroom_assigned = a.classroom_id
+              AND (g.estado IN ('1','ACTIVO','activo') OR g.estado IS NULL)
+        )";
+
+        $countAulaExpr = "(
+            SELECT COUNT(*)
+            FROM `groups` g
+            WHERE g.classroom_assigned = a.classroom_id
+              AND (g.estado IN ('1','ACTIVO','activo') OR g.estado IS NULL)
+        )";
+
+        $gruposLabExpr = "(
+            SELECT GROUP_CONCAT(g.group_name ORDER BY g.group_name SEPARATOR ', ')
+            FROM `groups` g
+            WHERE g.lab_assigned = l.lab_id
+              AND (g.estado IN ('1','ACTIVO','activo') OR g.estado IS NULL)
+        )";
+
+        $countLabExpr = "(
+            SELECT COUNT(*)
+            FROM `groups` g
+            WHERE g.lab_assigned = l.lab_id
+              AND (g.estado IN ('1','ACTIVO','activo') OR g.estado IS NULL)
+        )";
+
         $aulas = DB::table($this->T_AULAS.' as a')
-            ->selectRaw("a.classroom_id as id, {$aulaExpr} as nombre, 'aula' as tipo")
+            ->selectRaw("
+                a.classroom_id as id,
+                {$aulaExpr} as nombre,
+                'aula' as tipo,
+                COALESCE({$gruposAulaExpr}, '') as grupos,
+                ({$countAulaExpr}) as n_grupos
+            ")
             ->when($q !== '', function ($qq) use ($aulaCols, $aulaBase, $schema) {
                 $qq->where(function($w) use ($aulaCols, $aulaBase, $schema) {
                     foreach ($aulaCols as $c) {
@@ -56,7 +90,13 @@ class HorarioSalonController extends Controller
             ->get();
 
         $labs = DB::table($this->T_LABS.' as l')
-            ->selectRaw("l.lab_id as id, {$labExpr} as nombre, 'lab' as tipo")
+            ->selectRaw("
+                l.lab_id as id,
+                {$labExpr} as nombre,
+                'lab' as tipo,
+                COALESCE({$gruposLabExpr}, '') as grupos,
+                ({$countLabExpr}) as n_grupos
+            ")
             ->when($q !== '', function ($qq) use ($labCols, $labBase, $schema) {
                 $qq->where(function($w) use ($labCols, $labBase, $schema) {
                     foreach ($labCols as $c) {
@@ -78,10 +118,6 @@ class HorarioSalonController extends Controller
         ]);
     }
 
-
-    /**
-     * Muestra el horario de un espacio específico (aula o lab) en tabla.
-     */
     public function show(string $tipo, int $espacio_id)
     {
         abort_unless(in_array($tipo, ['aula', 'lab'], true), 404, 'Tipo de espacio inválido');
@@ -180,9 +216,6 @@ class HorarioSalonController extends Controller
         ]);
     }
 
-    /**
-     * Eventos (json) para FullCalendar de un espacio (aula/lab).
-     */
     public function eventos(string $tipo, int $espacio_id)
     {
         abort_unless(in_array($tipo, ['aula','lab'], true), 404, 'Tipo inválido');

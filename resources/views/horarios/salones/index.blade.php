@@ -53,6 +53,7 @@
                 <th class="text-center">#</th>
                 <th class="text-center">Nombre del espacio</th>
                 <th class="text-center">Tipo</th>
+                <th>Grupos asignados</th>
                 <th class="text-center">Acciones</th>
               </tr>
             </thead>
@@ -62,10 +63,19 @@
                   $id     = $e->id ?? $e->classroom_id ?? $e->lab_id ?? null;
                   $nombre = $e->nombre ?? $e->classroom_name ?? $e->lab_name ?? '—';
                   $tipo   = $e->tipo ?? (isset($e->classroom_id) ? 'aula' : 'lab');
+
+                  // Campos nuevos que vienen del controlador
+                  $grupos  = $e->grupos ?? '';
+                  $nGrupos = isset($e->n_grupos)
+                              ? (int)$e->n_grupos
+                              : (trim($grupos) === '' ? 0 : count(explode(',', $grupos)));
                 @endphp
+
                 <tr>
                   <td class="text-center">{{ is_int($i) ? $i + 1 : $loop->iteration }}</td>
+
                   <td class="text-center">{{ $nombre }}</td>
+
                   <td class="text-center">
                     @if ($tipo === 'aula')
                       <span class="badge bg-primary">Aula</span>
@@ -73,6 +83,20 @@
                       <span class="badge bg-warning text-dark">Laboratorio</span>
                     @endif
                   </td>
+
+                  <td class="text-center">
+                    @if ($nGrupos === 0)
+                      <span class="badge bg-secondary">Sin asignar</span>
+                    @else
+                      <div class="text-truncate d-inline-block" style="max-width: 360px;" title="{{ $grupos }}">
+                        {{ $grupos }}
+                      </div>
+                      @if ($nGrupos > 1)
+                        <span class="badge bg-info ms-1">{{ $nGrupos }} grupos</span>
+                      @endif
+                    @endif
+                  </td>
+
                   <td class="text-center">
                     <div class="btn-group" role="group">
                       <a href="{{ route('horarios.salones.show', ['tipo'=>$tipo,'espacio_id'=>$id]) }}"
