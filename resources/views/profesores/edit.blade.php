@@ -49,6 +49,7 @@
                   <select name="clasificacion" id="clasificacion" class="form-control" required>
                     <option value="PTC" {{ $clas==='PTC' ? 'selected' : '' }}>PTC</option>
                     <option value="PA"  {{ $clas==='PA'  ? 'selected' : '' }}>PA</option>
+                    <option value="PA Determinado"  {{ $clas==='PA Determinado'  ? 'selected' : '' }}>PA Determinado</option>
                     <option value="TA"  {{ $clas==='TA'  ? 'selected' : '' }}>TA</option>
                   </select>
                 </div>
