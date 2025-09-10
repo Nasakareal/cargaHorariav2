@@ -37,9 +37,9 @@ class TeacherSubjectApiController extends Controller
         $grupos = $this->gruposVisiblesPorUsuario($request->user());
 
         return response()->json([
-            'profesor'            => $profesor,
-            'materias_asignadas'  => $materiasAsignadas,
-            'grupos_disponibles'  => $grupos,
+            'profesor'           => $profesor,
+            'materias_asignadas' => $materiasAsignadas,
+            'grupos_disponibles' => $grupos,
         ]);
     }
 
@@ -290,8 +290,9 @@ class TeacherSubjectApiController extends Controller
 
     private function gruposVisiblesPorUsuario($user)
     {
-        $isAdmin       = $user?->hasRole('Administrador') ?? false;
-        $isSubdirector = $user?->hasRole('Subdirector')   ?? false;
+        // Compatibilidad PHP < 8 (sin nullsafe)
+        $isAdmin       = ($user && method_exists($user, 'hasRole')) ? $user->hasRole('Administrador') : false;
+        $isSubdirector = ($user && method_exists($user, 'hasRole')) ? $user->hasRole('Subdirector')   : false;
 
         $q = DB::table('groups as g')
             ->join('programs as p', 'p.program_id', '=', 'g.program_id')
@@ -326,10 +327,10 @@ class TeacherSubjectApiController extends Controller
         }
 
         if ($isSubdirector) {
-            $areas = collect(explode(',', (string)($user->area ?? '')))
-                ->map(fn($a)=>trim($a))->filter()->values()->all();
-            if (empty($areas)) return collect([]);
-            return $q->whereIn('p.area', $areas)->get();
+            $areasStr = $user && isset($user->area) ? (string)$user->area : '';
+            $areasArr = array_filter(array_map('trim', explode(',', $areasStr)));
+            if (empty($areasArr)) return collect([]);
+            return $q->whereIn('p.area', $areasArr)->get();
         }
 
         return collect([]);
@@ -337,7 +338,11 @@ class TeacherSubjectApiController extends Controller
 
     private function idsGruposVisibles($user): array
     {
-        return $this->gruposVisiblesPorUsuario($user)->pluck('group_id')->map(fn($x)=>(int)$x)->all();
+        // sin arrow functions
+        return $this->gruposVisiblesPorUsuario($user)
+            ->pluck('group_id')
+            ->map(function ($x) { return (int)$x; })
+            ->all();
     }
 
     private function cargarDisponibilidadProfesor(int $teacherId): array
@@ -350,7 +355,7 @@ class TeacherSubjectApiController extends Controller
         $disp = [];
         foreach ($rows as $r) {
             $d = $r->day_of_week;
-            $disp[$d] = $disp[$d] ?? [];
+            if (!isset($disp[$d])) $disp[$d] = [];
             $disp[$d][] = ['start'=>$r->start_time, 'end'=>$r->end_time];
         }
         return $disp;
@@ -562,7 +567,7 @@ class TeacherSubjectApiController extends Controller
             1=>'MATUTINO', 2=>'VESPERTINO', 3=>'MIXTO', 4=>'ZINAPÉCUARO',
             5=>'ENFERMERIA', 6=>'MATUTINO AVANZADO', 7=>'VESPERTINO AVANZADO'
         ];
-        $turno = $mapTurno[$gi->turn_id] ?? 'MATUTINO';
+        $turno = isset($mapTurno[$gi->turn_id]) ? $mapTurno[$gi->turn_id] : 'MATUTINO';
 
         if (!isset($dias_semana[$turno]) || !isset($horarios_disponibles[$turno])) {
             $errores[] = "No hay configuración de días/horarios para turno $turno";
@@ -615,7 +620,7 @@ class TeacherSubjectApiController extends Controller
             }
 
             $slots = $horarios_disponibles[$turno][$dia];
-            if (isset($slots['start'])) $slots = [$slots];
+            if (isset($slots['start'])) $slots = [ $slots ];
 
             $hueco = false;
             foreach ($slots as $slot) {

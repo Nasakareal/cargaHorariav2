@@ -11,6 +11,9 @@ use App\Models\Teacher;
 use App\Models\Subject;
 use App\Models\ActividadGeneral;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
+
 
 class ProfesorController extends Controller
 {
@@ -156,110 +159,191 @@ class ProfesorController extends Controller
         return view('profesores.edit', compact('profesor','areas','areasAsignadas','horarios'));
     }
 
-    public function update(Request $request, $id)
-    {
-        $profesor = Teacher::find($id);
-        if (!$profesor) {
-            return redirect()->route('profesores.index')
-                ->with('error', 'El profesor no existe o ya fue eliminado.');
+public function update(Request $request, $id)
+{
+    Log::info('HIT update PROF', ['id' => $id]);
+
+    $profesor = Teacher::where('teacher_id', (int)$id)->first();
+    if (!$profesor) {
+        return redirect()->route('profesores.index')
+            ->with('error', 'El profesor no existe o ya fue eliminado.');
+    }
+
+    $dbName = DB::getDatabaseName();
+
+    $clasAllowed = ['PTC','PA','TA','DETERMINADO','PA Determinado'];
+    $daysAllowed = [
+        'Lunes','Martes','Miércoles','Miercoles','Jueves','Viernes','Sábado','Sabado','Domingo',
+        'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday',
+    ];
+
+    $request->validate([
+        'teacher_name'        => 'required|string|max:255',
+        'clasificacion'       => ['required','string', Rule::in($clasAllowed)],
+        'areas'               => 'nullable|array',
+        'areas.*'             => 'string|max:255',
+        'day_of_week'         => 'nullable|array',
+        'day_of_week.*'       => ['nullable', Rule::in($daysAllowed)],
+        'start_time'          => 'nullable|array',
+        'start_time.*'        => 'nullable|date_format:H:i',
+        'end_time'            => 'nullable|array',
+        'end_time.*'          => 'nullable|date_format:H:i',
+    ], [
+        'teacher_name.required'   => 'El nombre del profesor es obligatorio.',
+        'clasificacion.required'  => 'La clasificación es obligatoria.',
+        'clasificacion.in'        => 'Clasificación inválida (usa PTC, PA, TA o DETERMINADO).',
+        'day_of_week.*.in'        => 'Día inválido en la disponibilidad.',
+        'start_time.*.date_format'=> 'Hora de inicio inválida (usa HH:MM).',
+        'end_time.*.date_format'  => 'Hora de fin inválida (usa HH:MM).',
+    ]);
+
+    // Normaliza clasificacion
+    $clasRaw  = trim((string)$request->input('clasificacion', ''));
+    $clasNorm = mb_strtoupper($clasRaw, 'UTF-8');
+    if ($clasNorm === 'PA DETERMINADO') {
+        $clasNorm = 'DETERMINADO';
+    }
+
+    // Normaliza disponibilidad
+    $days   = array_values($request->input('day_of_week', []));
+    $starts = array_values($request->input('start_time', []));
+    $ends   = array_values($request->input('end_time', []));
+    $availRows = [];
+    $n = max(count($days), count($starts), count($ends));
+    for ($k = 0; $k < $n; $k++) {
+        $d = $days[$k]   ?? null;
+        $s = $starts[$k] ?? null;
+        $e = $ends[$k]   ?? null;
+        if (!$d || !$s || !$e) continue;
+
+        if (strlen($s) === 5) $s .= ':00';
+        if (strlen($e) === 5) $e .= ':00';
+        if ($s >= $e) {
+            return back()->withInput()->with('error', 'Cada horario debe tener hora de fin mayor a la de inicio.');
         }
 
-        $request->validate([
-            'teacher_name' => 'required|string|max:255',
-            'clasificacion'=> 'required|in:PTC,PA,TA',
-            'areas'        => 'nullable|array',
-            'areas.*'      => 'string|max:255',
-            'day_of_week'  => 'nullable|array',
-            'day_of_week.*'=> 'in:Lunes,Martes,Miércoles,Jueves,Viernes,Sábado,Domingo',
-            'start_time'   => 'nullable|array',
-            'start_time.*' => 'date_format:H:i',
-            'end_time'     => 'nullable|array',
-            'end_time.*'   => 'date_format:H:i',
-        ], [
-            'teacher_name.required' => 'El nombre del profesor es obligatorio.',
-            'clasificacion.required'=> 'La clasificación es obligatoria.',
-            'clasificacion.in'      => 'Clasificación inválida.',
-        ]);
+        $availRows[] = [
+            'teacher_id'  => (int)$id,
+            'day_of_week' => $d,
+            'start_time'  => $s,
+            'end_time'    => $e,
+        ];
+    }
 
-        $days  = $request->input('day_of_week', []);
-        $starts= $request->input('start_time', []);
-        $ends  = $request->input('end_time', []);
+    $areasSel = array_map('trim', (array)$request->input('areas', []));
 
-        if (count($days) !== count($starts) || count($days) !== count($ends)) {
-            return back()->withInput()->with('error','Los horarios enviados son inconsistentes.');
+    // Snapshot previo
+    $before = (array) DB::table('teachers')->where('teacher_id', (int)$id)
+        ->first(['teacher_id','teacher_name','clasificacion','area']);
+
+    try {
+        DB::beginTransaction();
+        $now = now();
+
+        // 1) TEACHERS
+        $profesor->teacher_name      = $request->teacher_name;
+        $profesor->clasificacion     = $clasNorm;
+        if (Schema::hasColumn('teachers','area')) {
+            $profesor->area = count($areasSel) ? implode(',', $areasSel) : null;
         }
-        for ($i=0; $i<count($days); $i++) {
-            if (!isset($starts[$i], $ends[$i])) continue;
-            if ($starts[$i] >= $ends[$i]) {
-                return back()->withInput()->with('error','Cada horario debe tener hora de fin mayor a la de inicio.');
-            }
-        }
+        $profesor->fyh_actualizacion = $now;
 
-        try {
-            DB::beginTransaction();
+        // >>> FIX: no uses $dirty bruto porque siempre cambia fyh_actualizacion
+        $profesorDirtyKeys = array_keys($profesor->getDirty());
+        $dirtyCore = array_values(array_diff($profesorDirtyKeys, ['fyh_actualizacion']));
+        $profesor->save();
 
-            $profesor->teacher_name      = $request->teacher_name;
-            $profesor->clasificacion     = $request->clasificacion;
-            $profesor->fyh_actualizacion = now();
-            $profesor->save();
+        // 2) TEACHER_PROGRAM_TERM
+        if (Schema::hasTable('teacher_program_term')) {
+            DB::table('teacher_program_term')->where('teacher_id', (int)$id)->delete();
 
-            DB::table('teacher_program_term')->where('teacher_id', $id)->delete();
-
-            $areasSel = $request->input('areas', []);
             if (!empty($areasSel)) {
-                $programsFromAreas = DB::table('programs')
+                $programs = DB::table('programs')
                     ->whereIn('area', $areasSel)
-                    ->pluck('program_id')
-                    ->toArray();
+                    ->pluck('program_id');
 
-                if (!empty($programsFromAreas)) {
+                if ($programs->count()) {
                     $rows = [];
-                    $now = now();
-                    foreach ($programsFromAreas as $pid) {
+                    foreach ($programs as $pid) {
                         $rows[] = [
-                            'teacher_id'   => $id,
-                            'program_id'   => $pid,
-                            'term_id'      => null,
-                            'fyh_creacion' => $now,
-                            'estado'       => 'ACTIVO',
+                            'teacher_id'        => (int)$id,
+                            'program_id'        => (int)$pid,
+                            'term_id'           => null,
+                            'fyh_creacion'      => $now,
+                            'fyh_actualizacion' => null,
+                            'estado'            => 'ACTIVO',
                         ];
                     }
                     DB::table('teacher_program_term')->insert($rows);
                 }
             }
-
-            DB::table('teacher_availability')->where('teacher_id', $id)->delete();
-            if (!empty($days)) {
-                $rows = [];
-                $now = now();
-                for ($i=0; $i<count($days); $i++) {
-                    $rows[] = [
-                        'teacher_id'   => $id,
-                        'day_of_week'  => $days[$i],
-                        'start_time'   => $starts[$i],
-                        'end_time'     => $ends[$i],
-                        'fyh_creacion' => $now,
-                    ];
-                }
-                DB::table('teacher_availability')->insert($rows);
-            }
-
-            ActividadGeneral::registrar('ACTUALIZAR', 'teachers', $profesor->teacher_id, "Actualizó al profesor {$profesor->teacher_name}");
-
-            DB::commit();
-
-            return redirect()->route('profesores.index')
-                ->with('success', 'Profesor actualizado correctamente.');
-        } catch (QueryException $e) {
-            DB::rollBack();
-            Log::error('Error BD al actualizar profesor', ['code'=>$e->getCode(),'msg'=>$e->getMessage()]);
-            return back()->withInput()->with('error','Error de base de datos al actualizar el profesor.');
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            Log::error('Error inesperado al actualizar profesor', ['msg'=>$e->getMessage()]);
-            return back()->withInput()->with('error','Ocurrió un error inesperado al actualizar el profesor.');
         }
+
+        // 3) TEACHER_AVAILABILITY
+        if (Schema::hasTable('teacher_availability')) {
+            DB::table('teacher_availability')->where('teacher_id', (int)$id)->delete();
+            if (!empty($availRows)) {
+                if (Schema::hasColumn('teacher_availability','fyh_creacion')) {
+                    foreach ($availRows as &$r) $r['fyh_creacion'] = $now;
+                }
+                DB::table('teacher_availability')->insert($availRows);
+            }
+        }
+
+        // 4) USERS.area
+        if (Schema::hasTable('users') && Schema::hasColumn('users','teacher_id')) {
+            $userUpd = [];
+            if (Schema::hasColumn('users','area')) {
+                $userUpd['area'] = count($areasSel) ? implode(',', $areasSel) : null;
+            }
+            if (!empty($userUpd)) {
+                if (Schema::hasColumn('users','updated_at')) $userUpd['updated_at'] = $now;
+                DB::table('users')->where('teacher_id', (int)$id)->update($userUpd);
+            }
+        }
+
+        // 5) Bitácora
+        if (class_exists(\App\Models\ActividadGeneral::class)) {
+            \App\Models\ActividadGeneral::registrar(
+                'ACTUALIZAR', 'teachers', (int)$id,
+                "Actualizó al profesor {$request->teacher_name}"
+            );
+        }
+
+        DB::commit();
+
+        // Diagnóstico post-commit (solo para mensajes)
+        $after = (array) DB::table('teachers')->where('teacher_id', (int)$id)
+            ->first(['teacher_id','teacher_name','clasificacion','area']);
+
+        $diff = [];
+        foreach (['teacher_name','clasificacion','area'] as $k) {
+            $b = $before[$k] ?? null;
+            $a = $after[$k]  ?? null;
+            if ((string)$b !== (string)$a) {
+                $diff[$k] = ['antes'=>$b, 'despues'=>$a];
+            }
+        }
+
+        // Si realmente NO cambió nada en teachers y tampoco tocaste disponibilidad ni áreas/programas
+        if (empty($diff) && empty($dirtyCore) && empty($availRows) && empty($areasSel)) {
+            return redirect()->route('profesores.edit', $id)
+                ->with('warning', "No hubo cambios que guardar. BD: {$dbName}");
+        }
+
+        // >>> FIX: quita el falso negativo "Update no reflejado"
+        return redirect()->route('profesores.index')
+            ->with('success', "Profesor actualizado correctamente en BD: {$dbName}");
+    } catch (\Illuminate\Database\QueryException $e) {
+        DB::rollBack();
+        Log::error('Error BD al actualizar profesor', ['code'=>$e->getCode(),'msg'=>$e->getMessage()]);
+        return back()->withInput()->with('error','BD: '.$e->getMessage());
+    } catch (\Throwable $e) {
+        DB::rollBack();
+        Log::error('Error inesperado al actualizar profesor', ['msg'=>$e->getMessage()]);
+        return back()->withInput()->with('error',$e->getMessage());
     }
+}
 
     public function destroy($id)
     {
@@ -358,7 +442,7 @@ class ProfesorController extends Controller
                   });
             });
 
-        if (auth()->user()?->hasAnyRole(['Subdirector', 'Comisiones Internas'])) {
+        if (auth()->check() && auth()->user()->hasAnyRole(['Subdirector', 'Comisiones Internas'])) {
             $areas = collect(explode(',', (string)(auth()->user()->area ?? '')))
                 ->map(fn($a) => trim($a))
                 ->filter()
@@ -381,7 +465,6 @@ class ProfesorController extends Controller
 
         return view('profesores.asignar', compact('profesor','grupos','materiasAsignadas'));
     }
-
 
     /* ====================== AJAX: materias por grupo ====================== */
     public function materiasPorGrupo(Request $request, $id)
@@ -870,7 +953,7 @@ class ProfesorController extends Controller
             // o múltiples rangos [['start'=>...,'end'=>...], ...]
             $slots = $horarios_disponibles[$turno][$dia];
             if (isset($slots['start'])) {
-                $slots = [$slots]; // normaliza a array de slots
+                $slots = [$slots];
             }
 
             $hueco = false;

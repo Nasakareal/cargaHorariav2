@@ -3,6 +3,8 @@
 @section('title', 'Editar Profesor')
 
 @section('content_header')
+<div style="font-size:12px;opacity:.6">BLD {{ now() }}</div>
+
   <h1 class="text-center w-100">Edición de profesor</h1>
 @endsection
 
@@ -20,6 +22,17 @@
           </ul>
         </div>
       @endif
+
+        @if (session('success'))
+          <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
+        @if (session('warning'))
+          <div class="alert alert-warning">{{ session('warning') }}</div>
+        @endif
+        @if (session('error'))
+          <div class="alert alert-danger">{{ session('error') }}</div>
+        @endif
+
 
       <div class="card card-outline card-success">
         <div class="card-header">
@@ -41,16 +54,20 @@
                 </div>
               </div>
 
-              {{-- Clasificación --}}
+              {{-- Clasificación (valor canónico: PTC | PA | TA | PA Determinado) --}}
               <div class="col-md-4">
                 <div class="form-group">
                   <label for="clasificacion">Clasificación</label>
-                  @php $clas = old('clasificacion', $profesor->clasificacion); @endphp
+                  @php
+                    $clasRaw = old('clasificacion', $profesor->clasificacion);
+                    // normaliza "DETERMINADO" a "PA Determinado"
+                    $clas = (strcasecmp($clasRaw, 'DETERMINADO') === 0) ? 'PA Determinado' : $clasRaw;
+                    $opciones = ['PTC','PA','TA','PA Determinado'];
+                  @endphp
                   <select name="clasificacion" id="clasificacion" class="form-control" required>
-                    <option value="PTC" {{ $clas==='PTC' ? 'selected' : '' }}>PTC</option>
-                    <option value="PA"  {{ $clas==='PA'  ? 'selected' : '' }}>PA</option>
-                    <option value="PA Determinado"  {{ $clas==='PA Determinado'  ? 'selected' : '' }}>PA Determinado</option>
-                    <option value="TA"  {{ $clas==='TA'  ? 'selected' : '' }}>TA</option>
+                    @foreach ($opciones as $val)
+                      <option value="{{ $val }}" {{ strcasecmp($clas,$val)===0 ? 'selected' : '' }}>{{ $val }}</option>
+                    @endforeach
                   </select>
                 </div>
               </div>
@@ -61,29 +78,42 @@
               <div class="col-md-12">
                 <div class="form-group">
                   <label>Áreas</label>
+
+                  @php
+                    $sel  = collect(old('areas', $areasAsignadas ?? []))
+                              ->map(fn($v) => (string)$v)->all();
+                    $cols = 3;
+                  @endphp
+
                   <div class="table-responsive">
                     <table class="table table-bordered">
                       <tbody>
-                        @php
-                          $sel = collect(old('areas', $areasAsignadas ?? []))->map(fn($v)=> (string)$v)->all();
-                          $cols = 3; $i=0;
-                        @endphp
-                        <tr>
-                        @foreach ($areas as $area)
+                        @foreach ($areas as $idx => $area)
+                          @if ($idx % $cols === 0)
+                            <tr>
+                          @endif
+
+                          @php $inputId = 'area_'.md5((string)$area); @endphp
                           <td>
                             <input type="checkbox"
                                    name="areas[]"
-                                   id="area_{{ $area }}"
+                                   id="{{ $inputId }}"
                                    value="{{ $area }}"
                                    {{ in_array((string)$area, $sel, true) ? 'checked' : '' }}>
-                            <label for="area_{{ $area }}">{{ $area }}</label>
+                            <label for="{{ $inputId }}">{{ $area }}</label>
                           </td>
-                          @php $i++; if($i % $cols === 0) echo '</tr><tr>'; @endphp
+
+                          @if ($idx % $cols === 2 || $loop->last)
+                            @for ($pad = ($idx % $cols) + 1; $pad < $cols && $loop->last; $pad++)
+                              <td></td>
+                            @endfor
+                            </tr>
+                          @endif
                         @endforeach
-                        </tr>
                       </tbody>
                     </table>
                   </div>
+
                   <small class="text-muted">Selecciona una o más áreas (se asignarán automáticamente sus programas).</small>
                 </div>
               </div>
@@ -104,109 +134,109 @@
                       </tr>
                     </thead>
                     <tbody id="horarios_table">
+                      @php
+                        $dias      = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+                        $oldDays   = old('day_of_week', []);
+                        $oldStarts = old('start_time', []);
+                        $oldEnds   = old('end_time', []);
+                      @endphp
+
+                      {{-- Caso 1: viene de validación con errores (old) --}}
+                      @if(count($oldDays))
+                        @foreach($oldDays as $i => $day)
+                          <tr>
+                            <td>
+                              <select name="day_of_week[]" class="form-control">
+                                @foreach($dias as $d)
+                                  <option value="{{ $d }}" {{ $day === $d ? 'selected' : '' }}>{{ $d }}</option>
+                                @endforeach
+                              </select>
+                            </td>
+                            <td>
+                              @php $selStart = $oldStarts[$i] ?? null; @endphp
+                              <select name="start_time[]" class="form-control">
+                                @for($h=7; $h<=22; $h++)
+                                  @php $t = sprintf('%02d:00', $h); @endphp
+                                  <option value="{{ $t }}" {{ $selStart === $t ? 'selected' : '' }}>{{ $t }}</option>
+                                @endfor
+                              </select>
+                            </td>
+                            <td>
+                              @php $selEnd = $oldEnds[$i] ?? null; @endphp
+                              <select name="end_time[]" class="form-control">
+                                @for($h=7; $h<=22; $h++)
+                                  @php $t = sprintf('%02d:00', $h); @endphp
+                                  <option value="{{ $t }}" {{ $selEnd === $t ? 'selected' : '' }}>{{ $t }}</option>
+                                @endfor
+                              </select>
+                            </td>
+                            <td><button type="button" class="btn btn-danger btn-sm remove-row">Eliminar</button></td>
+                          </tr>
+                        @endforeach
+
+                      {{-- Caso 2: sin old(), pero hay horarios guardados --}}
+                      @elseif(($horarios ?? collect())->count())
+                        @foreach($horarios as $i => $h)
                           @php
-                            $dias      = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
-                            $oldDays   = old('day_of_week', []);
-                            $oldStarts = old('start_time', []);
-                            $oldEnds   = old('end_time', []);
+                            $selStart = substr($h->start_time, 0, 5);
+                            $selEnd   = substr($h->end_time, 0, 5);
                           @endphp
+                          <tr>
+                            <td>
+                              <select name="day_of_week[]" class="form-control">
+                                @foreach($dias as $d)
+                                  <option value="{{ $d }}" {{ $h->day_of_week === $d ? 'selected' : '' }}>{{ $d }}</option>
+                                @endforeach
+                              </select>
+                            </td>
+                            <td>
+                              <select name="start_time[]" class="form-control">
+                                @for($hh=7; $hh<=22; $hh++)
+                                  @php $tt = sprintf('%02d:00', $hh); @endphp
+                                  <option value="{{ $tt }}" {{ $selStart === $tt ? 'selected' : '' }}>{{ $tt }}</option>
+                                @endfor
+                              </select>
+                            </td>
+                            <td>
+                              <select name="end_time[]" class="form-control">
+                                @for($hh=7; $hh<=22; $hh++)
+                                  @php $tt = sprintf('%02d:00', $hh); @endphp
+                                  <option value="{{ $tt }}" {{ $selEnd === $tt ? 'selected' : '' }}>{{ $tt }}</option>
+                                @endfor
+                              </select>
+                            </td>
+                            <td><button type="button" class="btn btn-danger btn-sm remove-row">Eliminar</button></td>
+                          </tr>
+                        @endforeach
 
-                          {{-- Caso 1: viene de validación con errores (old) --}}
-                          @if(count($oldDays))
-                            @foreach($oldDays as $i => $day)
-                              <tr>
-                                <td>
-                                  <select name="day_of_week[]" class="form-control">
-                                    @foreach($dias as $d)
-                                      <option value="{{ $d }}" {{ $day === $d ? 'selected' : '' }}>{{ $d }}</option>
-                                    @endforeach
-                                  </select>
-                                </td>
-                                <td>
-                                  @php $selStart = $oldStarts[$i] ?? null; @endphp
-                                  <select name="start_time[]" class="form-control">
-                                    @for($h=7; $h<=22; $h++)
-                                      @php $t = sprintf('%02d:00', $h); @endphp
-                                      <option value="{{ $t }}" {{ $selStart === $t ? 'selected' : '' }}>{{ $t }}</option>
-                                    @endfor
-                                  </select>
-                                </td>
-                                <td>
-                                  @php $selEnd = $oldEnds[$i] ?? null; @endphp
-                                  <select name="end_time[]" class="form-control">
-                                    @for($h=7; $h<=22; $h++)
-                                      @php $t = sprintf('%02d:00', $h); @endphp
-                                      <option value="{{ $t }}" {{ $selEnd === $t ? 'selected' : '' }}>{{ $t }}</option>
-                                    @endfor
-                                  </select>
-                                </td>
-                                <td><button type="button" class="btn btn-danger btn-sm remove-row">Eliminar</button></td>
-                              </tr>
-                            @endforeach
-
-                          {{-- Caso 2: sin old(), pero hay horarios guardados --}}
-                          @elseif(($horarios ?? collect())->count())
-                            @foreach($horarios as $i => $h)
-                              @php
-                                $selStart = substr($h->start_time, 0, 5);
-                                $selEnd   = substr($h->end_time, 0, 5);
-                              @endphp
-                              <tr>
-                                <td>
-                                  <select name="day_of_week[]" class="form-control">
-                                    @foreach($dias as $d)
-                                      <option value="{{ $d }}" {{ $h->day_of_week === $d ? 'selected' : '' }}>{{ $d }}</option>
-                                    @endforeach
-                                  </select>
-                                </td>
-                                <td>
-                                  <select name="start_time[]" class="form-control">
-                                    @for($hh=7; $hh<=22; $hh++)
-                                      @php $tt = sprintf('%02d:00', $hh); @endphp
-                                      <option value="{{ $tt }}" {{ $selStart === $tt ? 'selected' : '' }}>{{ $tt }}</option>
-                                    @endfor
-                                  </select>
-                                </td>
-                                <td>
-                                  <select name="end_time[]" class="form-control">
-                                    @for($hh=7; $hh<=22; $hh++)
-                                      @php $tt = sprintf('%02d:00', $hh); @endphp
-                                      <option value="{{ $tt }}" {{ $selEnd === $tt ? 'selected' : '' }}>{{ $tt }}</option>
-                                    @endfor
-                                  </select>
-                                </td>
-                                <td><button type="button" class="btn btn-danger btn-sm remove-row">Eliminar</button></td>
-                              </tr>
-                            @endforeach
-
-                          {{-- Caso 3: no old() y sin horarios -> una fila vacía --}}
-                          @else
-                            <tr>
-                              <td>
-                                <select name="day_of_week[]" class="form-control">
-                                  @foreach($dias as $d)<option value="{{ $d }}">{{ $d }}</option>@endforeach
-                                </select>
-                              </td>
-                              <td>
-                                <select name="start_time[]" class="form-control">
-                                  @for($h=7; $h<=22; $h++)
-                                    @php $t = sprintf('%02d:00', $h); @endphp
-                                    <option value="{{ $t }}">{{ $t }}</option>
-                                  @endfor
-                                </select>
-                              </td>
-                              <td>
-                                <select name="end_time[]" class="form-control">
-                                  @for($h=7; $h<=22; $h++)
-                                    @php $t = sprintf('%02d:00', $h); @endphp
-                                    <option value="{{ $t }}">{{ $t }}</option>
-                                  @endfor
-                                </select>
-                              </td>
-                              <td><button type="button" class="btn btn-danger btn-sm remove-row">Eliminar</button></td>
-                            </tr>
-                          @endif
-                        </tbody>
+                      {{-- Caso 3: no old() y sin horarios -> una fila vacía --}}
+                      @else
+                        <tr>
+                          <td>
+                            <select name="day_of_week[]" class="form-control">
+                              @foreach($dias as $d)<option value="{{ $d }}">{{ $d }}</option>@endforeach
+                            </select>
+                          </td>
+                          <td>
+                            <select name="start_time[]" class="form-control">
+                              @for($h=7; $h<=22; $h++)
+                                @php $t = sprintf('%02d:00', $h); @endphp
+                                <option value="{{ $t }}">{{ $t }}</option>
+                              @endfor
+                            </select>
+                          </td>
+                          <td>
+                            <select name="end_time[]" class="form-control">
+                              @for($h=7; $h<=22; $h++)
+                                @php $t = sprintf('%02d:00', $h); @endphp
+                                <option value="{{ $t }}">{{ $t }}</option>
+                              @endfor
+                            </select>
+                          </td>
+                          <td><button type="button" class="btn btn-danger btn-sm remove-row">Eliminar</button></td>
+                        </tr>
+                      @endif
+                    </tbody>
 
                   </table>
                   <button type="button" id="addHorario" class="btn btn-success btn-sm">Agregar Horario</button>
