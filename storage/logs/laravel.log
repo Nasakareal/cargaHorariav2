@@ -38,3 +38,12 @@
 "} 
 [2025-09-10 00:30:02] local.INFO: HIT update PROF {"id":"69"} 
 [2025-09-10 00:30:08] local.INFO: HIT update PROF {"id":"69"} 
+[2025-09-19 16:22:06] local.INFO: HIT edit PROF {"id":234,"user_id":1} 
+[2025-09-19 16:22:13] local.INFO: HIT update PROF {"id":"234"} 
+[2025-09-19 16:22:13] local.ERROR: Error BD al actualizar profesor {"code":"23000","msg":"SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`cargahoraria`.`teachers`, CONSTRAINT `teachers_ibfk_3` FOREIGN KEY (`area`) REFERENCES `programs` (`area`) ON UPDATE CASCADE) (SQL: update `teachers` set `teacher_name` = MARIA ARACELI, `area` = DMI,QMBT, `fyh_actualizacion` = 2025-09-19 16:22:13 where `teacher_id` = 234)"} 
+[2025-09-19 16:22:13] local.INFO: HIT edit PROF {"id":234,"user_id":1} 
+[2025-09-19 16:48:22] local.INFO: HIT edit PROF {"id":234,"user_id":1} 
+[2025-09-19 16:50:51] local.INFO: HIT update PROF {"id":"234"} 
+[2025-09-19 16:50:52] local.ERROR: Error BD al actualizar profesor {"id":"234","code":"23000","msg":"SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`cargahoraria`.`teachers`, CONSTRAINT `teachers_ibfk_3` FOREIGN KEY (`area`) REFERENCES `programs` (`area`) ON UPDATE CASCADE) (SQL: update `teachers` set `teacher_name` = asdasd, `area` = DMI,QMBT, `fyh_actualizacion` = 2025-09-19 16:50:52 where `teacher_id` = 234)"} 
+[2025-09-19 16:50:52] local.INFO: HIT edit PROF {"id":234,"user_id":1} 
+[2025-09-19 17:06:46] local.INFO: HIT edit PROF {"id":234,"user_id":1} 
